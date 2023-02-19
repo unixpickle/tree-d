@@ -1,0 +1,10 @@
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/unixpickle/essentials v1.3.0 h1:H258Z5Uo1pVzFjxD2rwFWzHPN3s0J0jLs5kuxTRSfCs=
+github.com/unixpickle/essentials v1.3.0/go.mod h1:dQ1idvqrgrDgub3mfckQm7osVPzT3u9rB6NK/LEhmtQ=
+github.com/unixpickle/model3d v0.4.1 h1:LwNcj5y0s2aOAL6WffnTjNG6R2cSI+hMGOWB1DSxdrE=
+github.com/unixpickle/model3d v0.4.1/go.mod h1:jzVXU0Rlm8wa27Y79i1spgsYI8aPp+id311rj3FAxsY=
+github.com/unixpickle/splaytree v1.1.0 h1:LXYm3OHPHLacGrUnEsrES4i8DFTqwyw1eoxXuZIE6kM=
+github.com/unixpickle/splaytree v1.1.0/go.mod h1:Wmzeu7zl1qJVgZXlOdWib73pZlFOsFVgYo3k/72bYDw=
+golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb h1:PaBZQdo+iSDyHT053FjUCgZQ/9uqVwPOcl7KSWhKn6w=
+golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb/go.mod h1:CxIveKay+FTh1D0yPZemJVgC/95VzuuOLq5Qi4xnoYc=
