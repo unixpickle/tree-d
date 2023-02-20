@@ -2,6 +2,8 @@ package treed
 
 import "math"
 
+// SplitInfo is returned by Loss.MinimumSplit() to indicate where to split a
+// list of labels for sorted samples to minimize a loss.
 type SplitInfo struct {
 	// Number of elements in less than branch to keep.
 	Index int
@@ -10,22 +12,32 @@ type SplitInfo struct {
 	Loss float64
 }
 
+// A List is a general array type which can have an arbitrary implementation.
+// This can be useful for avoiding contiguous slice allocations.
 type List[T any] struct {
 	Len int
 	Get func(int) T
 }
 
+// A Loss implements a decision criterion used to select the best split of a
+// tree. The loss must understand the label type T, and uses a threshold type
+// F only to determine when two data points have exactly the same split
+// threshold and therefore must always be grouped together.
 type Loss[F comparable, T any] interface {
 	// Predict returns the value to minimize the loss of a leaf.
 	Predict(List[T]) T
 
 	// Get the best split of the data according to the loss function.
 	//
-	// May be a split where all of the values are on one side, in which case no
-	// split reduces the loss.
+	// The first argument must be a sorted list of labels, according to the
+	// thresholds passed to the second argument.
+	//
+	// The result may be a split where all of the values are on one side or the
+	// other, in which case no split reduces the loss.
 	MinimumSplit(sorted List[T], thresholds List[F]) SplitInfo
 }
 
+// EntropyLoss is a Loss which computes the total entropy across both branches.
 type EntropyLoss[F comparable] struct{}
 
 func (_ EntropyLoss[F]) Predict(items List[bool]) bool {

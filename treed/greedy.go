@@ -1,11 +1,25 @@
 package treed
 
 import (
+	"runtime"
+
 	"github.com/unixpickle/essentials"
 	"golang.org/x/exp/constraints"
 	"golang.org/x/exp/slices"
 )
 
+// GreedyTree builds a decision tree by greedily selecting a split at each
+// branch which minimizes a loss.
+//
+// The specified axes are used as features (via a Dot product) for decisions at
+// each branch of the tree. These need not be axis-aligned or normalized.
+//
+// Stops building a branch of the tree once a maximum depth is reached, or once
+// the loss does not decrease for any split.
+//
+// The concurrency argument specifies the maximum number of Goroutines to use
+// for search. No more than len(axes) Goroutines can be utilized at once.
+// If concurrency is 0, GOMAXPROCS is used.
 func GreedyTree[F constraints.Float, C Coord[F, C], T any](
 	axes []C,
 	coords []C,
@@ -14,6 +28,9 @@ func GreedyTree[F constraints.Float, C Coord[F, C], T any](
 	concurrency int,
 	maxDepth int,
 ) *Tree[F, C, T] {
+	if concurrency == 0 {
+		concurrency = runtime.GOMAXPROCS(0)
+	}
 	return newGreedySearchState(
 		axes,
 		coords,
