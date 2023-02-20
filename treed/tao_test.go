@@ -40,7 +40,7 @@ func TestTAO(t *testing.T) {
 	tao := TAO[float64, model3d.Coord3D, bool]{
 		Loss:        EqualityTAOLoss[bool]{},
 		LR:          0.01,
-		WeightDecay: 0.0,
+		WeightDecay: 1e-4,
 		Iters:       10000,
 	}
 	result := tao.Optimize(tree, points, labels)

@@ -169,8 +169,8 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 	var finalAcc F
 
 	for iter := 0; iter < t.Iters; iter++ {
-		var hingeGradient C
-		var biasGradient F
+		hingeGradient := w.Scale(-0.5 * t.WeightDecay)
+		biasGradient := b * -0.5 * t.WeightDecay
 		var loss F
 		var acc F
 		for i, c := range coords {
