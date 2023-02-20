@@ -17,10 +17,10 @@ type TAO[F constraints.Float, C Coord[F, C], T any] struct {
 	Loss TAOLoss[T]
 
 	// LR is the step size for optimization.
-	LR float64
+	LR F
 
 	// WeightDecay is the L2 penalty for optimization.
-	WeightDecay float64
+	WeightDecay F
 
 	// Iters is the number of optimization iterations to perform.
 	Iters int
@@ -60,13 +60,13 @@ func (t *TAO[F, C, T]) optimize(
 	rightResult := t.optimize(tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
 
 	targets := make([]bool, len(coords))
-	weights := make([]float64, len(coords))
+	weights := make([]F, len(coords))
 	for i, c := range coords {
 		label := labels[i]
 		leftLoss := t.Loss.Loss(label, leftResult.Tree.Apply(c))
 		rightLoss := t.Loss.Loss(label, rightResult.Tree.Apply(c))
 		targets[i] = leftLoss < rightLoss
-		weights[i] = math.Abs(leftLoss - rightLoss)
+		weights[i] = (F)(math.Abs(leftLoss - rightLoss))
 	}
 	newWeight, newBias := t.linearSVM(tree.Axis, -tree.Threshold, coords, targets, weights)
 	newTree := &Tree[F, C, T]{
@@ -146,7 +146,26 @@ func (t *TAO[F, C, T]) splitDecision(axis C, threshold F, coords []C, labels []T
 	return len(coords) - numPositive
 }
 
-func (t *TAO[F, C, T]) linearSVM(init C, bias F, coords []C, targets []bool, weights []float64) (C, F) {
-	// TODO: implement this.
-	return init, bias
+func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights []F) (C, F) {
+	meanScale := 1.0 / F(len(coords))
+	for iter := 0; iter < t.Iters; iter++ {
+		var hingeGradient C
+		var biasGradient F
+		for i, c := range coords {
+			target := targets[i]
+			weight := weights[i]
+			pred := w.Dot(c) + b
+			var lossGrad F
+			if pred < 1 && target {
+				lossGrad = weight * meanScale
+			} else if pred > -1 && !target {
+				lossGrad = -weight * meanScale
+			}
+			hingeGradient = hingeGradient.Add(c.Scale(lossGrad))
+			biasGradient += lossGrad
+		}
+		w = w.Scale(1 - t.WeightDecay).Add(hingeGradient.Scale(t.LR))
+		b += biasGradient
+	}
+	return w, b
 }
