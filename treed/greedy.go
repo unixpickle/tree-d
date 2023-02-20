@@ -6,6 +6,23 @@ import (
 	"golang.org/x/exp/slices"
 )
 
+func GreedyTree[F constraints.Float, C Coord[F, C], T any](
+	axes []C,
+	coords []C,
+	labels []T,
+	loss Loss[F, T],
+	concurrency int,
+	maxDepth int,
+) *Tree[F, C, T] {
+	return newGreedySearchState(
+		axes,
+		coords,
+		labels,
+		loss,
+		concurrency,
+	).Build(maxDepth)
+}
+
 type greedySearchState[F constraints.Float, C Coord[F, C], T any] struct {
 	Axes        []C
 	Sorted      [][]*greedySearchNode[F, C, T]
@@ -53,7 +70,11 @@ func newGreedySearchState[F constraints.Float, C Coord[F, C], T any](
 	return res
 }
 
-func (g *greedySearchState[F, C, T]) MaybeSplit() *[2]*greedySearchState[F, C, T] {
+func (g *greedySearchState[F, C, T]) Build(maxDepth int) *Tree[F, C, T] {
+	if maxDepth == 0 {
+		return g.BuildLeaf()
+	}
+
 	queries := make(chan int, len(g.Axes))
 	for i := range g.Axes {
 		queries <- i
@@ -64,20 +85,7 @@ func (g *greedySearchState[F, C, T]) MaybeSplit() *[2]*greedySearchState[F, C, T
 	for i := 0; i < g.Concurrency; i++ {
 		go func() {
 			for axis := range queries {
-				sorted := g.Sorted[axis]
-				labels := List[T]{
-					Len: len(sorted),
-					Get: func(i int) T {
-						return sorted[i].Label
-					},
-				}
-				thresholds := List[F]{
-					Len: len(sorted),
-					Get: func(i int) F {
-						return sorted[i].Values[axis]
-					},
-				}
-				splitInfo := g.Loss.MinimumSplit(labels, thresholds)
+				splitInfo := g.Loss.MinimumSplit(g.Labels(axis), g.Thresholds(axis))
 				results <- splitResult{
 					SplitInfo: splitInfo,
 					Axis:      axis,
@@ -97,8 +105,45 @@ func (g *greedySearchState[F, C, T]) MaybeSplit() *[2]*greedySearchState[F, C, T
 	if bestResult.Index == 0 || bestResult.Index == len(g.Sorted[0]) {
 		return nil
 	}
-	res := g.Split(bestResult.Axis, bestResult.Index)
-	return &res
+	split := g.Split(bestResult.Axis, bestResult.Index)
+	left := split[0].Build(maxDepth - 1)
+	right := split[1].Build(maxDepth - 1)
+
+	bestThresholds := g.Thresholds(bestResult.Axis)
+	v1 := bestThresholds.Get(bestResult.Index - 1)
+	v2 := bestThresholds.Get(bestResult.Index)
+	return &Tree[F, C, T]{
+		Axis:         g.Axes[bestResult.Axis],
+		Threshold:    (v1 + v2) / 2,
+		LessThan:     left,
+		GreaterEqual: right,
+	}
+}
+
+func (g *greedySearchState[F, C, T]) BuildLeaf() *Tree[F, C, T] {
+	return &Tree[F, C, T]{
+		Leaf: g.Loss.Predict(g.Labels(0)),
+	}
+}
+
+func (g *greedySearchState[F, C, T]) Labels(axis int) List[T] {
+	sorted := g.Sorted[axis]
+	return List[T]{
+		Len: len(sorted),
+		Get: func(i int) T {
+			return sorted[i].Label
+		},
+	}
+}
+
+func (g *greedySearchState[F, C, T]) Thresholds(axis int) List[F] {
+	sorted := g.Sorted[axis]
+	return List[F]{
+		Len: len(sorted),
+		Get: func(i int) F {
+			return sorted[i].Values[axis]
+		},
+	}
 }
 
 func (g *greedySearchState[F, C, T]) Split(axis int, index int) [2]*greedySearchState[F, C, T] {
