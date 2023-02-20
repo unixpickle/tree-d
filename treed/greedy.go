@@ -24,7 +24,7 @@ func GreedyTree[F constraints.Float, C Coord[F, C], T any](
 	axes []C,
 	coords []C,
 	labels []T,
-	loss Loss[F, T],
+	loss SplitLoss[F, T],
 	concurrency int,
 	maxDepth int,
 ) *Tree[F, C, T] {
@@ -43,7 +43,7 @@ func GreedyTree[F constraints.Float, C Coord[F, C], T any](
 type greedySearchState[F constraints.Float, C Coord[F, C], T any] struct {
 	Axes        []C
 	Sorted      [][]*greedySearchNode[F, C, T]
-	Loss        Loss[F, T]
+	Loss        SplitLoss[F, T]
 	Value       T
 	Concurrency int
 }
@@ -52,7 +52,7 @@ func newGreedySearchState[F constraints.Float, C Coord[F, C], T any](
 	axes []C,
 	coords []C,
 	labels []T,
-	loss Loss[F, T],
+	loss SplitLoss[F, T],
 	concurrency int,
 ) *greedySearchState[F, C, T] {
 	res := &greedySearchState[F, C, T]{

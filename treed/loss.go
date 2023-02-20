@@ -12,11 +12,11 @@ type SplitInfo struct {
 	Loss float64
 }
 
-// A Loss implements a decision criterion used to select the best split of a
-// tree. The loss must understand the label type T, and uses a threshold type
+// A SplitLoss implements a decision criterion used to select the best split of
+// a tree. The loss must understand the label type T, and uses a threshold type
 // F only to determine when two data points have exactly the same split
 // threshold and therefore must always be grouped together.
-type Loss[F comparable, T any] interface {
+type SplitLoss[F comparable, T any] interface {
 	// Predict returns the value to minimize the loss of a leaf.
 	Predict(funcList[T]) T
 
@@ -30,14 +30,15 @@ type Loss[F comparable, T any] interface {
 	MinimumSplit(sorted funcList[T], thresholds funcList[F]) SplitInfo
 }
 
-// EntropyLoss is a Loss which computes the total entropy across both branches.
-type EntropyLoss[F comparable] struct{}
+// EntropySplitLoss is a SplitLoss which computes the total entropy across both
+// branches.
+type EntropySplitLoss[F comparable] struct{}
 
-func (_ EntropyLoss[F]) Predict(items funcList[bool]) bool {
+func (_ EntropySplitLoss[F]) Predict(items funcList[bool]) bool {
 	return countTrue(items)*2 > items.Len
 }
 
-func (_ EntropyLoss[F]) MinimumSplit(sorted funcList[bool], thresholds funcList[F]) SplitInfo {
+func (_ EntropySplitLoss[F]) MinimumSplit(sorted funcList[bool], thresholds funcList[F]) SplitInfo {
 	if sorted.Len != thresholds.Len {
 		panic("values and thresholds must have same length")
 	}
