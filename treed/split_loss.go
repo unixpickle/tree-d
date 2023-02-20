@@ -18,7 +18,7 @@ type SplitInfo struct {
 // threshold and therefore must always be grouped together.
 type SplitLoss[F comparable, T any] interface {
 	// Predict returns the value to minimize the loss of a leaf.
-	Predict(funcList[T]) T
+	Predict(List[T]) T
 
 	// Get the best split of the data according to the loss function.
 	//
@@ -27,18 +27,18 @@ type SplitLoss[F comparable, T any] interface {
 	//
 	// The result may be a split where all of the values are on one side or the
 	// other, in which case no split reduces the loss.
-	MinimumSplit(sorted funcList[T], thresholds funcList[F]) SplitInfo
+	MinimumSplit(sorted List[T], thresholds List[F]) SplitInfo
 }
 
 // EntropySplitLoss is a SplitLoss which computes the total entropy across both
 // branches.
 type EntropySplitLoss[F comparable] struct{}
 
-func (_ EntropySplitLoss[F]) Predict(items funcList[bool]) bool {
+func (_ EntropySplitLoss[F]) Predict(items List[bool]) bool {
 	return countTrue(items)*2 > items.Len
 }
 
-func (_ EntropySplitLoss[F]) MinimumSplit(sorted funcList[bool], thresholds funcList[F]) SplitInfo {
+func (_ EntropySplitLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) SplitInfo {
 	if sorted.Len != thresholds.Len {
 		panic("values and thresholds must have same length")
 	}
@@ -70,7 +70,7 @@ func (_ EntropySplitLoss[F]) MinimumSplit(sorted funcList[bool], thresholds func
 	return bestSplit
 }
 
-func countTrue(list funcList[bool]) int {
+func countTrue(list List[bool]) int {
 	var count int
 	for i := 0; i < list.Len; i++ {
 		if list.Get(i) {
@@ -95,7 +95,7 @@ func logOrZero(x float64) float64 {
 	return math.Log(x)
 }
 
-func iterateSplitPoints[F comparable](thresholds funcList[F], f func(int)) {
+func iterateSplitPoints[F comparable](thresholds List[F], f func(int)) {
 	var prevValue F
 	for i := 0; i < thresholds.Len; i++ {
 		x := thresholds.Get(i)
