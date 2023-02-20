@@ -23,6 +23,9 @@ type TAO[F constraints.Float, C Coord[F, C], T any] struct {
 	// WeightDecay is the L2 penalty for optimization.
 	WeightDecay F
 
+	// Momentum is the Nesterov momentum coefficient.
+	Momentum F
+
 	// Iters is the number of optimization iterations to perform.
 	Iters int
 
@@ -168,9 +171,12 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 	var initAcc F
 	var finalAcc F
 
+	var momentumW C
+	var momentumB F
+
 	for iter := 0; iter < t.Iters; iter++ {
-		hingeGradient := w.Scale(-0.5 * t.WeightDecay)
-		biasGradient := b * -0.5 * t.WeightDecay
+		weightGrad := w.Scale(-0.5 * t.WeightDecay)
+		biasGrad := b * -0.5 * t.WeightDecay
 		var loss F
 		var acc F
 		for i, c := range coords {
@@ -188,11 +194,24 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 			if pred > 0 == target {
 				acc += weight * meanScale
 			}
-			hingeGradient = hingeGradient.Add(c.Scale(lossGrad))
-			biasGradient += lossGrad
+			weightGrad = weightGrad.Add(c.Scale(lossGrad))
+			biasGrad += lossGrad
 		}
-		w = w.Scale(1 - t.WeightDecay).Add(hingeGradient.Scale(t.LR))
-		b += biasGradient * t.LR
+
+		if iter == 0 {
+			momentumW, momentumB = weightGrad, biasGrad
+		} else {
+			momentumW = momentumW.Scale(t.Momentum).Add(weightGrad)
+			momentumB = momentumB*t.Momentum + biasGrad
+		}
+
+		// Nesterov momentum (see https://pytorch.org/docs/stable/generated/torch.optim.SGD.html)
+		weightGrad = weightGrad.Add(momentumW.Scale(t.Momentum))
+		biasGrad = biasGrad + momentumB*t.Momentum
+
+		lr := t.LR * F(t.Iters-iter) / F(t.Iters)
+		w = w.Scale(1 - t.WeightDecay).Add(weightGrad.Scale(lr))
+		b += biasGrad * lr
 		if iter == 0 {
 			initLoss = loss
 			initAcc = acc
