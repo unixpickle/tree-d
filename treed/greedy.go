@@ -143,9 +143,9 @@ func (g *greedySearchState[F, C, T]) BuildLeaf() *Tree[F, C, T] {
 	}
 }
 
-func (g *greedySearchState[F, C, T]) Labels(axis int) List[T] {
+func (g *greedySearchState[F, C, T]) Labels(axis int) funcList[T] {
 	sorted := g.Sorted[axis]
-	return List[T]{
+	return funcList[T]{
 		Len: len(sorted),
 		Get: func(i int) T {
 			return sorted[i].Label
@@ -153,9 +153,9 @@ func (g *greedySearchState[F, C, T]) Labels(axis int) List[T] {
 	}
 }
 
-func (g *greedySearchState[F, C, T]) Thresholds(axis int) List[F] {
+func (g *greedySearchState[F, C, T]) Thresholds(axis int) funcList[F] {
 	sorted := g.Sorted[axis]
-	return List[F]{
+	return funcList[F]{
 		Len: len(sorted),
 		Get: func(i int) F {
 			return sorted[i].Values[axis]

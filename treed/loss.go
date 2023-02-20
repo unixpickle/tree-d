@@ -12,20 +12,13 @@ type SplitInfo struct {
 	Loss float64
 }
 
-// A List is a general array type which can have an arbitrary implementation.
-// This can be useful for avoiding contiguous slice allocations.
-type List[T any] struct {
-	Len int
-	Get func(int) T
-}
-
 // A Loss implements a decision criterion used to select the best split of a
 // tree. The loss must understand the label type T, and uses a threshold type
 // F only to determine when two data points have exactly the same split
 // threshold and therefore must always be grouped together.
 type Loss[F comparable, T any] interface {
 	// Predict returns the value to minimize the loss of a leaf.
-	Predict(List[T]) T
+	Predict(funcList[T]) T
 
 	// Get the best split of the data according to the loss function.
 	//
@@ -34,17 +27,17 @@ type Loss[F comparable, T any] interface {
 	//
 	// The result may be a split where all of the values are on one side or the
 	// other, in which case no split reduces the loss.
-	MinimumSplit(sorted List[T], thresholds List[F]) SplitInfo
+	MinimumSplit(sorted funcList[T], thresholds funcList[F]) SplitInfo
 }
 
 // EntropyLoss is a Loss which computes the total entropy across both branches.
 type EntropyLoss[F comparable] struct{}
 
-func (_ EntropyLoss[F]) Predict(items List[bool]) bool {
+func (_ EntropyLoss[F]) Predict(items funcList[bool]) bool {
 	return countTrue(items)*2 > items.Len
 }
 
-func (_ EntropyLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) SplitInfo {
+func (_ EntropyLoss[F]) MinimumSplit(sorted funcList[bool], thresholds funcList[F]) SplitInfo {
 	if sorted.Len != thresholds.Len {
 		panic("values and thresholds must have same length")
 	}
@@ -76,7 +69,7 @@ func (_ EntropyLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) Spli
 	return bestSplit
 }
 
-func countTrue(list List[bool]) int {
+func countTrue(list funcList[bool]) int {
 	var count int
 	for i := 0; i < list.Len; i++ {
 		if list.Get(i) {
@@ -101,7 +94,7 @@ func logOrZero(x float64) float64 {
 	return math.Log(x)
 }
 
-func iterateSplitPoints[F comparable](thresholds List[F], f func(int)) {
+func iterateSplitPoints[F comparable](thresholds funcList[F], f func(int)) {
 	var prevValue F
 	for i := 0; i < thresholds.Len; i++ {
 		x := thresholds.Get(i)
