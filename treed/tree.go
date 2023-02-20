@@ -15,8 +15,12 @@ type Tree[F constraints.Float, C Coord[F, C], T any] struct {
 	Leaf T
 }
 
+func (t *Tree[F, C, T]) IsLeaf() bool {
+	return t.LessThan == nil
+}
+
 func (t *Tree[F, C, T]) Apply(c C) T {
-	if t.LessThan == nil {
+	if t.IsLeaf() {
 		return t.Leaf
 	} else {
 		dot := t.Axis.Dot(c)

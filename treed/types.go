@@ -6,3 +6,12 @@ type List[T any] struct {
 	Len int
 	Get func(int) T
 }
+
+func NewListSlice[T any](s []T) List[T] {
+	return List[T]{
+		Len: len(s),
+		Get: func(i int) T {
+			return s[i]
+		},
+	}
+}
