@@ -1,6 +1,8 @@
 package treed
 
-import "math"
+import (
+	"math"
+)
 
 // SplitInfo is returned by Loss.MinimumSplit() to indicate where to split a
 // list of labels for sorted samples to minimize a loss.
@@ -81,6 +83,9 @@ func countTrue(list List[bool]) int {
 }
 
 func entropy(numPoints, numTrue int) float64 {
+	if numPoints == 0 {
+		return 0
+	}
 	numFalse := numPoints - numTrue
 	fracTrue := float64(numTrue) / float64(numPoints)
 	fracFalse := float64(numFalse) / float64(numPoints)

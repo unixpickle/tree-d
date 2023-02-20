@@ -24,3 +24,11 @@ func NewListSlice[T any](s []T) List[T] {
 		},
 	}
 }
+
+func (l List[T]) Slice() []T {
+	res := make([]T, l.Len)
+	for i := range res {
+		res[i] = l.Get(i)
+	}
+	return res
+}

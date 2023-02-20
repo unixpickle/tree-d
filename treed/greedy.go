@@ -44,7 +44,6 @@ type greedySearchState[F constraints.Float, C Coord[F, C], T any] struct {
 	Axes        []C
 	Sorted      [][]*greedySearchNode[F, C, T]
 	Loss        SplitLoss[F, T]
-	Value       T
 	Concurrency int
 }
 
@@ -123,6 +122,7 @@ func (g *greedySearchState[F, C, T]) Build(maxDepth int) *Tree[F, C, T] {
 		return g.BuildLeaf()
 	}
 	split := g.Split(bestResult.Axis, bestResult.Index)
+
 	left := split[0].Build(maxDepth - 1)
 	right := split[1].Build(maxDepth - 1)
 
@@ -165,15 +165,17 @@ func (g *greedySearchState[F, C, T]) Thresholds(axis int) List[F] {
 
 func (g *greedySearchState[F, C, T]) Split(axis int, index int) [2]*greedySearchState[F, C, T] {
 	for i, node := range g.Sorted[axis] {
-		node.IsRight = i < index
+		node.IsRight = i >= index
 	}
 
 	var states [2]*greedySearchState[F, C, T]
 	for i, count := range [2]int{index, len(g.Sorted[0]) - index} {
 		isRight := i == 1
 		state := &greedySearchState[F, C, T]{
-			Axes:   g.Axes,
-			Sorted: make([][]*greedySearchNode[F, C, T], len(g.Axes)),
+			Axes:        g.Axes,
+			Sorted:      make([][]*greedySearchNode[F, C, T], len(g.Axes)),
+			Loss:        g.Loss,
+			Concurrency: g.Concurrency,
 		}
 		for j := range g.Axes {
 			subList := make([]*greedySearchNode[F, C, T], 0, count)
