@@ -2,10 +2,6 @@ package treed
 
 import "golang.org/x/exp/constraints"
 
-type Coord[F constraints.Float, Self any] interface {
-	Dot(Self) F
-}
-
 type Tree[F constraints.Float, C Coord[F, C], T any] struct {
 	Axis         C
 	Threshold    F
