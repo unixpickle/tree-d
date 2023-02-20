@@ -120,7 +120,7 @@ func (g *greedySearchState[F, C, T]) Build(maxDepth int) *Tree[F, C, T] {
 	}
 
 	if bestResult.Index == 0 || bestResult.Index == len(g.Sorted[0]) {
-		return nil
+		return g.BuildLeaf()
 	}
 	split := g.Split(bestResult.Axis, bestResult.Index)
 	left := split[0].Build(maxDepth - 1)

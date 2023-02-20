@@ -21,8 +21,8 @@ func TestGreedyOneLayer(t *testing.T) {
 	}
 	labels := make([]bool, len(points))
 	for i, x := range points {
-		if x.X < 0.2 {
-			labels[i] = x.Y > -0.1
+		if x.X < 0.5 {
+			labels[i] = x.Y > 0.4
 		} else {
 			labels[i] = true
 		}
