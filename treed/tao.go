@@ -1,6 +1,7 @@
 package treed
 
 import (
+	"log"
 	"math"
 
 	"golang.org/x/exp/constraints"
@@ -24,6 +25,9 @@ type TAO[F constraints.Float, C Coord[F, C], T any] struct {
 
 	// Iters is the number of optimization iterations to perform.
 	Iters int
+
+	// Verbose, if true, enables printing during training.
+	Verbose bool
 }
 
 func (t *TAO[F, C, T]) Optimize(
@@ -65,7 +69,7 @@ func (t *TAO[F, C, T]) optimize(
 		label := labels[i]
 		leftLoss := t.Loss.Loss(label, leftResult.Tree.Apply(c))
 		rightLoss := t.Loss.Loss(label, rightResult.Tree.Apply(c))
-		targets[i] = leftLoss < rightLoss
+		targets[i] = leftLoss > rightLoss
 		weights[i] = (F)(math.Abs(leftLoss - rightLoss))
 	}
 	newWeight, newBias := t.linearSVM(tree.Axis, -tree.Threshold, coords, targets, weights)
@@ -83,6 +87,9 @@ func (t *TAO[F, C, T]) optimize(
 	}
 	newLoss := t.evaluateLoss(newTree, coords, labels)
 	alternativeNewLoss := t.evaluateLoss(alternativeNewTree, coords, labels)
+	if t.Verbose {
+		log.Printf("old_loss=%f new_loss=%f alternative=%f", oldLoss, newLoss, alternativeNewLoss)
+	}
 	if newLoss >= alternativeNewLoss {
 		if leftResult.Tree != tree.LessThan || rightResult.Tree != tree.GreaterEqual {
 			newTree = alternativeNewTree
@@ -147,10 +154,25 @@ func (t *TAO[F, C, T]) splitDecision(axis C, threshold F, coords []C, labels []T
 }
 
 func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights []F) (C, F) {
-	meanScale := 1.0 / F(len(coords))
+	var totalWeight F
+	for _, x := range weights {
+		totalWeight += x
+	}
+	if totalWeight == 0 {
+		return w, b
+	}
+	meanScale := 1 / totalWeight
+
+	var initLoss F
+	var finalLoss F
+	var initAcc F
+	var finalAcc F
+
 	for iter := 0; iter < t.Iters; iter++ {
 		var hingeGradient C
 		var biasGradient F
+		var loss F
+		var acc F
 		for i, c := range coords {
 			target := targets[i]
 			weight := weights[i]
@@ -158,14 +180,29 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 			var lossGrad F
 			if pred < 1 && target {
 				lossGrad = weight * meanScale
+				loss += weight * (1 - pred) * meanScale
 			} else if pred > -1 && !target {
 				lossGrad = -weight * meanScale
+				loss += weight * (pred + 1) * meanScale
+			}
+			if pred > 0 == target {
+				acc += weight * meanScale
 			}
 			hingeGradient = hingeGradient.Add(c.Scale(lossGrad))
 			biasGradient += lossGrad
 		}
 		w = w.Scale(1 - t.WeightDecay).Add(hingeGradient.Scale(t.LR))
-		b += biasGradient
+		b += biasGradient * t.LR
+		if iter == 0 {
+			initLoss = loss
+			initAcc = acc
+		} else if iter == t.Iters-1 {
+			finalLoss = loss
+			finalAcc = acc
+		}
+	}
+	if t.Verbose {
+		log.Printf("SVM training: loss=%f->%f acc=%f->%f", initLoss, finalLoss, initAcc, finalAcc)
 	}
 	return w, b
 }
