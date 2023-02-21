@@ -47,6 +47,13 @@ func (t *Tree[F, C, T]) String() string {
 	}
 }
 
+func (t *Tree[F, C, T]) NumLeaves() int {
+	if t.IsLeaf() {
+		return 1
+	}
+	return t.LessThan.NumLeaves() + t.GreaterEqual.NumLeaves()
+}
+
 // SimplifyTree prunes the tree when it does not increase the loss.
 func (t *Tree[F, C, T]) Simplify(
 	coords []C,
