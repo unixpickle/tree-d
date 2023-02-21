@@ -62,7 +62,7 @@ func (t *TAO[F, C, T]) optimize(
 
 	// Note that this has side-effects. In particular, coords and labels are
 	// re-ordered to split the decision boundary.
-	splitIdx := t.splitDecision(tree.Axis, tree.Threshold, coords, labels)
+	splitIdx := splitDecision(tree.Axis, tree.Threshold, coords, labels)
 	leftResult := t.optimize(tree.LessThan, coords[:splitIdx], labels[:splitIdx])
 	rightResult := t.optimize(tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
 
@@ -141,21 +141,6 @@ func (t *TAO[F, C, T]) evaluateLoss(tree *Tree[F, C, T], coords []C, labels []T)
 	return total
 }
 
-func (t *TAO[F, C, T]) splitDecision(axis C, threshold F, coords []C, labels []T) int {
-	numPositive := 0
-	for i := 0; i+numPositive < len(coords); i++ {
-		x := coords[i]
-		if axis.Dot(x) >= threshold {
-			numPositive++
-			endIdx := len(coords) - numPositive
-			coords[i], coords[endIdx] = coords[endIdx], coords[i]
-			labels[i], labels[endIdx] = labels[endIdx], labels[i]
-			i--
-		}
-	}
-	return len(coords) - numPositive
-}
-
 func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights []F) (C, F) {
 	scale := LineSearchScale[F](w, b, coords, targets, HingeLoss[F]{})
 	w = w.Scale(scale)
@@ -188,4 +173,24 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 	}
 
 	return result.Weight, result.Bias
+}
+
+func splitDecision[F constraints.Float, C Coord[F, C], T any](
+	axis C,
+	threshold F,
+	coords []C,
+	labels []T,
+) int {
+	numPositive := 0
+	for i := 0; i+numPositive < len(coords); i++ {
+		x := coords[i]
+		if axis.Dot(x) >= threshold {
+			numPositive++
+			endIdx := len(coords) - numPositive
+			coords[i], coords[endIdx] = coords[endIdx], coords[i]
+			labels[i], labels[endIdx] = labels[endIdx], labels[i]
+			i--
+		}
+	}
+	return len(coords) - numPositive
 }

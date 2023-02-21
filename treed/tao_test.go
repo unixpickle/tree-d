@@ -7,6 +7,45 @@ import (
 	"github.com/unixpickle/model3d/model3d"
 )
 
+func TestSplitDecision(t *testing.T) {
+	inputCoords := make([]model3d.Coord3D, 30)
+	inputTargets := make([]bool, 30)
+	inputMapping := map[model3d.Coord3D]bool{}
+	for i := range inputCoords {
+		inputCoords[i] = model3d.NewCoord3DRandNorm()
+		inputTargets[i] = rand.Intn(2) == 0
+		inputMapping[inputCoords[i]] = inputTargets[i]
+	}
+
+	coords := append([]model3d.Coord3D{}, inputCoords...)
+	targets := append([]bool{}, inputTargets...)
+	axis := model3d.XY(1.0, -1.0)
+	threshold := 0.1
+	idx := splitDecision(axis, threshold, coords, targets)
+
+	for i, c := range coords {
+		decision := axis.Dot(c) >= threshold
+		if i < idx {
+			if decision != false {
+				t.Fatal("unexpected false decision")
+			}
+		} else {
+			if decision != true {
+				t.Fatal("unexpected true decision")
+			}
+		}
+		actualT := targets[i]
+		expectedT, ok := inputMapping[c]
+		if !ok {
+			t.Fatal("unexpected point duplication")
+		}
+		delete(inputMapping, c)
+		if actualT != expectedT {
+			t.Fatal("incorrect target")
+		}
+	}
+}
+
 func TestTAO(t *testing.T) {
 	rand.Seed(1337)
 	points := make([]model3d.Coord3D, 5000)
