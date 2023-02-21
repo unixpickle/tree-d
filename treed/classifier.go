@@ -74,7 +74,7 @@ func (s *SGDOptimizer[F, C]) Step(weightGrad C, biasGrad F) (C, F) {
 	return s.weight, s.bias
 }
 
-type LinearRegressionResult[F constraints.Float, C Coord[F, C]] struct {
+type LinearClassificationResult[F constraints.Float, C Coord[F, C]] struct {
 	Weight    C
 	Bias      F
 	InitLoss  F
@@ -83,7 +83,7 @@ type LinearRegressionResult[F constraints.Float, C Coord[F, C]] struct {
 	FinalAcc  F
 }
 
-func LinearRegression[F constraints.Float, C Coord[F, C]](
+func LinearClassification[F constraints.Float, C Coord[F, C]](
 	initW C,
 	initB F,
 	coords []C,
@@ -92,7 +92,7 @@ func LinearRegression[F constraints.Float, C Coord[F, C]](
 	lossFn ClassifierLoss[F],
 	opt LinearOptimizer[F, C],
 	iters int,
-) *LinearRegressionResult[F, C] {
+) *LinearClassificationResult[F, C] {
 	w := initW
 	b := initB
 	opt.Init(w, b)
@@ -102,7 +102,7 @@ func LinearRegression[F constraints.Float, C Coord[F, C]](
 		totalWeight += x
 	}
 	if totalWeight == 0 {
-		return &LinearRegressionResult[F, C]{
+		return &LinearClassificationResult[F, C]{
 			Weight: w,
 			Bias:   b,
 		}
@@ -143,7 +143,7 @@ func LinearRegression[F constraints.Float, C Coord[F, C]](
 		w, b = opt.Step(weightGrad, biasGrad)
 	}
 
-	return &LinearRegressionResult[F, C]{
+	return &LinearClassificationResult[F, C]{
 		Weight:    w,
 		Bias:      b,
 		InitLoss:  initLoss,
