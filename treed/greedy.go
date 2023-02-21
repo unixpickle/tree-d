@@ -64,7 +64,8 @@ func newGreedySearchState[F constraints.Float, C Coord[F, C], T any](
 	nodes := make([]*greedySearchNode[F, C, T], len(coords))
 	// Pack all values in contiguous array to avoid many tiny allocations.
 	values := make([]F, len(coords)*len(axes))
-	for i, c := range coords {
+	essentials.ConcurrentMap(concurrency, len(coords), func(i int) {
+		c := coords[i]
 		for j, axis := range axes {
 			values[i*len(axes)+j] = c.Dot(axis)
 		}
@@ -73,15 +74,15 @@ func newGreedySearchState[F constraints.Float, C Coord[F, C], T any](
 			Values: values[i*len(axes) : (i+1)*len(axes)],
 			Label:  labels[i],
 		}
-	}
+	})
 
-	for i := range axes {
+	essentials.ConcurrentMap(concurrency, len(axes), func(i int) {
 		sorted := append([]*greedySearchNode[F, C, T]{}, nodes...)
 		slices.SortFunc(sorted, func(x, y *greedySearchNode[F, C, T]) bool {
 			return x.Values[i] < y.Values[i]
 		})
 		res.Sorted[i] = sorted
-	}
+	})
 
 	return res
 }
