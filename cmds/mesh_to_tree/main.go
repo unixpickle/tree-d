@@ -20,6 +20,7 @@ func main() {
 	var taoIters int
 	var depth int
 	var datasetSize int
+	var taoDatasetSize int
 	var axisResolution int
 	var verbose bool
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -29,6 +30,7 @@ func main() {
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
+	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 10000000, "number of points to sample for TAO")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -65,6 +67,9 @@ func main() {
 		depth,
 	)
 
+	log.Println("Sampling TAO dataset...")
+	coords, labels = SolidDataset(solid, taoDatasetSize)
+
 	log.Println("Refining tree with TAO...")
 	tao := treed.TAO[float64, model3d.Coord3D, bool]{
 		Loss:        treed.EqualityTAOLoss[bool]{},
@@ -75,7 +80,6 @@ func main() {
 		Verbose:     verbose,
 	}
 	for i := 0; i < taoIters; i++ {
-		coords, labels = SolidDataset(solid, datasetSize)
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
 			log.Printf("no improvement at iteration %d: loss=%f", i, result.OldLoss)
