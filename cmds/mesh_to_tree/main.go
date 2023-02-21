@@ -50,7 +50,9 @@ func main() {
 	f.Close()
 	essentials.Must(err)
 	inputMesh := model3d.NewMeshTriangles(inputTris)
-	coords, labels := MeshDataset(inputMesh, datasetSize)
+	coll := model3d.MeshToCollider(inputMesh)
+	solid := model3d.NewColliderSolid(coll)
+	coords, labels := SolidDataset(solid, datasetSize)
 
 	log.Println("Building initial tree...")
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
@@ -73,6 +75,7 @@ func main() {
 		Verbose:     verbose,
 	}
 	for i := 0; i < taoIters; i++ {
+		coords, labels = SolidDataset(solid, datasetSize)
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
 			log.Printf("no improvement at iteration %d: loss=%f", i, result.OldLoss)
@@ -99,21 +102,21 @@ func main() {
 	}))
 }
 
-func MeshDataset(mesh *model3d.Mesh, numPoints int) (points []model3d.Coord3D, labels []bool) {
-	coll := model3d.MeshToCollider(mesh)
-	solid := model3d.NewColliderSolid(coll)
-
-	min, max := mesh.Min(), mesh.Max()
+func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D, labels []bool) {
+	min, max := solid.Min(), solid.Max()
 	size := min.Dist(max)
 	min = min.AddScalar(-size * 0.1)
 	max = max.AddScalar(size * 0.1)
 
-	for i := 0; i < numPoints; i++ {
+	points = make([]model3d.Coord3D, numPoints)
+	labels = make([]bool, numPoints)
+
+	essentials.ConcurrentMap(0, numPoints, func(i int) {
 		point := model3d.NewCoord3DRandBounds(min, max)
 		label := solid.Contains(point)
-		points = append(points, point)
-		labels = append(labels, label)
-	}
+		points[i] = point
+		labels[i] = label
+	})
 
 	return
 }
