@@ -94,6 +94,43 @@ func TestTAO(t *testing.T) {
 	}
 }
 
+func BenchmarkTAO(b *testing.B) {
+	rand.Seed(1337)
+	points := make([]model3d.Coord3D, 10000)
+	for i := range points {
+		points[i] = model3d.NewCoord3DRandUniform()
+	}
+	labels := make([]bool, len(points))
+	for i, x := range points {
+		if x.Dist(model3d.XYZ(0.3, 0.7, 0.5)) < 0.5 {
+			labels[i] = true
+		}
+	}
+
+	axes := model3d.NewMeshIcosphere(model3d.Origin, 1, 1).VertexSlice()
+	tree := GreedyTree[float64, model3d.Coord3D, bool](
+		axes,
+		points,
+		labels,
+		EntropySplitLoss[float64]{},
+		0,
+		6,
+	)
+
+	tao := TAO[float64, model3d.Coord3D, bool]{
+		Loss:        EqualityTAOLoss[bool]{},
+		LR:          1e-2,
+		WeightDecay: 1e-3,
+		Momentum:    0.9,
+		Iters:       1000,
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		tao.Optimize(tree, points, labels)
+	}
+}
+
 func boolAccuracy(tree *Tree[float64, model3d.Coord3D, bool], coords []model3d.Coord3D, labels []bool) float64 {
 	count := 0
 	for i, c := range coords {
