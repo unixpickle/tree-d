@@ -174,11 +174,11 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 		var totalLoss F
 		var acc F
 		for i, c := range coords {
-			target := targets[i]
 			weight := weights[i] * meanScale
 			if weight == 0 {
 				continue
 			}
+			target := targets[i]
 			pred := w.Dot(c) + b
 			loss, lossGrad := lossFn.LossAndGrad(pred, target)
 			if pred > 0 == target {

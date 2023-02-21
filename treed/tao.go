@@ -66,16 +66,47 @@ func (t *TAO[F, C, T]) optimize(
 	leftResult := t.optimize(tree.LessThan, coords[:splitIdx], labels[:splitIdx])
 	rightResult := t.optimize(tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
 
-	targets := make([]bool, len(coords))
-	weights := make([]F, len(coords))
+	clsTargets := make([]bool, 0, len(coords))
+	clsWeights := make([]F, 0, len(coords))
+	clsCoords := make([]C, 0, len(coords))
 	for i, c := range coords {
 		label := labels[i]
 		leftLoss := t.Loss.Loss(label, leftResult.Tree.Predict(c))
 		rightLoss := t.Loss.Loss(label, rightResult.Tree.Predict(c))
-		targets[i] = leftLoss > rightLoss
-		weights[i] = (F)(math.Abs(leftLoss - rightLoss))
+		weight := (F)(math.Abs(leftLoss - rightLoss))
+		if weight != 0 {
+			clsTargets = append(clsTargets, leftLoss > rightLoss)
+			clsWeights = append(clsWeights, weight)
+			clsCoords = append(clsCoords, c)
+		}
 	}
-	newWeight, newBias := t.linearSVM(tree.Axis, -tree.Threshold, coords, targets, weights)
+
+	// If there's no benefit to be gained from updating the decision function,
+	// we keep it the same and skip SVM training.
+	if len(clsWeights) == 0 {
+		if leftResult.Tree != tree.LessThan || rightResult.Tree != tree.GreaterEqual {
+			newTree := &Tree[F, C, T]{
+				Axis:         tree.Axis,
+				Threshold:    tree.Threshold,
+				LessThan:     leftResult.Tree,
+				GreaterEqual: rightResult.Tree,
+			}
+			newLoss := t.evaluateLoss(newTree, coords, labels)
+			return TAOResult[F, C, T]{
+				Tree:    tree,
+				OldLoss: oldLoss,
+				NewLoss: newLoss,
+			}
+		} else {
+			return TAOResult[F, C, T]{
+				Tree:    tree,
+				OldLoss: oldLoss,
+				NewLoss: oldLoss,
+			}
+		}
+	}
+
+	newWeight, newBias := t.linearSVM(tree.Axis, -tree.Threshold, clsCoords, clsTargets, clsWeights)
 	newTree := &Tree[F, C, T]{
 		Axis:         newWeight,
 		Threshold:    -newBias,
