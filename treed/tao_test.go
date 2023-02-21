@@ -59,7 +59,7 @@ func boolAccuracy(tree *Tree[float64, model3d.Coord3D, bool], coords []model3d.C
 	count := 0
 	for i, c := range coords {
 		label := labels[i]
-		if tree.Apply(c) == label {
+		if tree.Predict(c) == label {
 			count++
 		}
 	}

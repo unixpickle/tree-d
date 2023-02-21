@@ -17,10 +17,10 @@ func TestTreeCoord3D(t *testing.T) {
 			Leaf: "right",
 		},
 	}
-	mustEqual(t, "left", tree.Apply(model3d.Z(0)))
-	mustEqual(t, "left", tree.Apply(model3d.Z(0.499999)))
-	mustEqual(t, "right", tree.Apply(model3d.Z(0.5)))
-	mustEqual(t, "right", tree.Apply(model3d.Z(0.50001)))
+	mustEqual(t, "left", tree.Predict(model3d.Z(0)))
+	mustEqual(t, "left", tree.Predict(model3d.Z(0.499999)))
+	mustEqual(t, "right", tree.Predict(model3d.Z(0.5)))
+	mustEqual(t, "right", tree.Predict(model3d.Z(0.50001)))
 }
 
 func mustEqual(t *testing.T, x, y string) {

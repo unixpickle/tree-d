@@ -70,8 +70,8 @@ func (t *TAO[F, C, T]) optimize(
 	weights := make([]F, len(coords))
 	for i, c := range coords {
 		label := labels[i]
-		leftLoss := t.Loss.Loss(label, leftResult.Tree.Apply(c))
-		rightLoss := t.Loss.Loss(label, rightResult.Tree.Apply(c))
+		leftLoss := t.Loss.Loss(label, leftResult.Tree.Predict(c))
+		rightLoss := t.Loss.Loss(label, rightResult.Tree.Predict(c))
 		targets[i] = leftLoss > rightLoss
 		weights[i] = (F)(math.Abs(leftLoss - rightLoss))
 	}
@@ -135,7 +135,7 @@ func (t *TAO[F, C, T]) evaluateLoss(tree *Tree[F, C, T], coords []C, labels []T)
 	var total float64
 	for i, c := range coords {
 		label := labels[i]
-		prediction := tree.Apply(c)
+		prediction := tree.Predict(c)
 		total += t.Loss.Loss(label, prediction)
 	}
 	return total

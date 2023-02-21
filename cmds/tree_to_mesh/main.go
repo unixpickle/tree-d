@@ -38,7 +38,7 @@ func main() {
 		tree.Min,
 		tree.Max,
 		func(c model3d.Coord3D) bool {
-			return tree.Tree.Apply(c)
+			return tree.Tree.Predict(c)
 		},
 	)
 	maxSize := tree.Max.Sub(tree.Min).MaxCoord()

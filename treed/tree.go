@@ -20,15 +20,15 @@ func (t *Tree[F, C, T]) IsLeaf() bool {
 	return t.LessThan == nil
 }
 
-func (t *Tree[F, C, T]) Apply(c C) T {
+func (t *Tree[F, C, T]) Predict(c C) T {
 	if t.IsLeaf() {
 		return t.Leaf
 	} else {
 		dot := t.Axis.Dot(c)
 		if dot < t.Threshold {
-			return t.LessThan.Apply(c)
+			return t.LessThan.Predict(c)
 		} else {
-			return t.GreaterEqual.Apply(c)
+			return t.GreaterEqual.Predict(c)
 		}
 	}
 }

@@ -45,7 +45,7 @@ func TestGreedyOneLayer(t *testing.T) {
 
 		for i, x := range points {
 			label := labels[i]
-			pred := tree.Apply(x)
+			pred := tree.Predict(x)
 			if label != pred {
 				t.Errorf("point %v got %v but should be %v", x, pred, label)
 			}
