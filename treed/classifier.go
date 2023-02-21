@@ -3,11 +3,15 @@ package treed
 import (
 	"math"
 
+	"github.com/unixpickle/model3d/model3d"
 	"golang.org/x/exp/constraints"
+	"gonum.org/v1/gonum/blas"
+	"gonum.org/v1/gonum/blas/blas64"
 )
 
 type ClassifierLoss[F constraints.Float] interface {
-	// LossAndGrad computes the loss and/or gradient of the loss.
+	// LossAndGrad computes the loss and/or gradient of the loss for an array
+	// of inputs.
 	//
 	// Both lossOut or gradOut may be passed, or one may be nil, but at least
 	// one of the two should be non-nil.
@@ -209,22 +213,16 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 	var initLoss, finalLoss, initAcc, finalAcc F
 
 	// Temporary buffers.
+	mvp := createMatVecProd[F, C](coords)
 	preds := make([]F, len(coords))
 	losses := make([]F, len(coords))
 	grads := make([]F, len(coords))
 
 	for iter := 0; iter < iters; iter++ {
-		var acc F
-		for i, c := range coords {
-			pred := w.Dot(c) + b
-			preds[i] = pred
-			if pred > 0 == targets[i] {
-				acc += weights[i]
-			}
-		}
-
+		mvp.MatVecProd(w, b, preds)
 		lossFn.LossAndGrad(preds, targets, losses, grads)
 
+		var acc F
 		var weightGrad C
 		var biasGrad F
 		var totalLoss F
@@ -232,6 +230,9 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 			weight := weights[i] * meanScale
 			loss := losses[i]
 			grad := grads[i]
+			if preds[i] > 0 == targets[i] {
+				acc += weights[i]
+			}
 
 			weightGrad = weightGrad.Add(c.Scale(grad * weight))
 			biasGrad += grad * weight
@@ -257,4 +258,61 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 		InitAcc:   initAcc,
 		FinalAcc:  finalAcc,
 	}
+}
+
+type matVecProd[F constraints.Float, C Coord[F, C]] interface {
+	MatVecProd(w C, b F, out []F)
+}
+
+func createMatVecProd[F constraints.Float, C Coord[F, C]](x any) matVecProd[F, C] {
+	switch x := x.(type) {
+	case []model3d.Coord3D:
+		res := coord3DMatVecProd{
+			Coords: blas64.General{
+				Rows:   len(x),
+				Cols:   4,
+				Data:   make([]float64, 4*len(x)),
+				Stride: 4,
+			},
+		}
+		for i, c := range x {
+			res.Coords.Data[i*4] = c.X
+			res.Coords.Data[i*4+1] = c.Y
+			res.Coords.Data[i*4+2] = c.Z
+			res.Coords.Data[i*4+3] = 1.0
+		}
+		var obj any = res
+		return obj.(matVecProd[F, C])
+	default:
+		return genericMatVecProd[F, C]{Coords: x.([]C)}
+	}
+}
+
+type genericMatVecProd[F constraints.Float, C Coord[F, C]] struct {
+	Coords []C
+}
+
+func (g genericMatVecProd[F, C]) MatVecProd(w C, b F, out []F) {
+	for i, c := range g.Coords {
+		out[i] = c.Dot(w) + b
+	}
+}
+
+type coord3DMatVecProd struct {
+	Coords blas64.General
+}
+
+func (c coord3DMatVecProd) MatVecProd(w model3d.Coord3D, b float64, out []float64) {
+	wArr := w.Array()
+	inVec := blas64.Vector{
+		Data: append(wArr[:], b),
+		N:    4,
+		Inc:  1,
+	}
+	outVec := blas64.Vector{
+		Data: out,
+		N:    len(out),
+		Inc:  1,
+	}
+	blas64.Gemv(blas.NoTrans, 1.0, c.Coords, inVec, 0.0, outVec)
 }
