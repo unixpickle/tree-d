@@ -157,71 +157,31 @@ func (t *TAO[F, C, T]) splitDecision(axis C, threshold F, coords []C, labels []T
 }
 
 func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights []F) (C, F) {
-	var totalWeight F
-	for _, x := range weights {
-		totalWeight += x
-	}
-	if totalWeight == 0 {
-		return w, b
-	}
-	meanScale := 1 / totalWeight
+	result := LinearClassification[F, C](
+		w,
+		b,
+		coords,
+		targets,
+		weights,
+		HingeLoss[F]{},
+		&SGDOptimizer[F, C]{
+			LR:          t.LR,
+			WeightDecay: t.WeightDecay,
+			Momentum:    t.Momentum,
+			AnnealIters: t.Iters,
+		},
+		t.Iters,
+	)
 
-	var initLoss F
-	var finalLoss F
-	var initAcc F
-	var finalAcc F
-
-	var momentumW C
-	var momentumB F
-
-	for iter := 0; iter < t.Iters; iter++ {
-		weightGrad := w.Scale(-0.5 * t.WeightDecay)
-		biasGrad := b * -0.5 * t.WeightDecay
-		var loss F
-		var acc F
-		for i, c := range coords {
-			target := targets[i]
-			weight := weights[i]
-			pred := w.Dot(c) + b
-			var lossGrad F
-			if pred < 1 && target {
-				lossGrad = weight * meanScale
-				loss += weight * (1 - pred) * meanScale
-			} else if pred > -1 && !target {
-				lossGrad = -weight * meanScale
-				loss += weight * (pred + 1) * meanScale
-			}
-			if pred > 0 == target {
-				acc += weight * meanScale
-			}
-			weightGrad = weightGrad.Add(c.Scale(lossGrad))
-			biasGrad += lossGrad
-		}
-
-		if iter == 0 {
-			momentumW, momentumB = weightGrad, biasGrad
-		} else {
-			momentumW = momentumW.Scale(t.Momentum).Add(weightGrad)
-			momentumB = momentumB*t.Momentum + biasGrad
-		}
-
-		// Nesterov momentum (see https://pytorch.org/docs/stable/generated/torch.optim.SGD.html)
-		weightGrad = weightGrad.Add(momentumW.Scale(t.Momentum))
-		biasGrad = biasGrad + momentumB*t.Momentum
-
-		lr := t.LR * F(t.Iters-iter) / F(t.Iters)
-		w = w.Scale(1 - t.WeightDecay).Add(weightGrad.Scale(lr))
-		b += biasGrad * lr
-		if iter == 0 {
-			initLoss = loss
-			initAcc = acc
-		} else if iter == t.Iters-1 {
-			finalLoss = loss
-			finalAcc = acc
-		}
-	}
 	if t.Verbose {
-		log.Printf("SVM training: loss=%f->%f acc=%f->%f", initLoss, finalLoss, initAcc, finalAcc)
+		log.Printf(
+			"SVM training: loss=%f->%f acc=%f->%f",
+			result.InitLoss,
+			result.FinalLoss,
+			result.InitAcc,
+			result.FinalAcc,
+		)
 	}
-	return w, b
+
+	return result.Weight, result.Bias
 }

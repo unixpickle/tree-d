@@ -39,10 +39,11 @@ func TestTAO(t *testing.T) {
 
 	tao := TAO[float64, model3d.Coord3D, bool]{
 		Loss:        EqualityTAOLoss[bool]{},
-		LR:          1e-1,
-		WeightDecay: 1e-4,
+		LR:          1e-2,
+		WeightDecay: 1e-3,
 		Momentum:    0.9,
 		Iters:       1000,
+		Verbose:     true,
 	}
 	result := tao.Optimize(tree, points, labels)
 	if result.OldLoss <= result.NewLoss {
