@@ -1,6 +1,10 @@
 package treed
 
-import "golang.org/x/exp/constraints"
+import (
+	"math"
+
+	"golang.org/x/exp/constraints"
+)
 
 type ClassifierLoss[F constraints.Float] interface {
 	LossAndGrad(pred F, target bool) (F, F)
@@ -18,6 +22,59 @@ func (_ HingeLoss[F]) LossAndGrad(pred F, target bool) (F, F) {
 		loss = (pred + 1)
 	}
 	return loss, grad
+}
+
+func LineSearchScale[F constraints.Float, C Coord[F, C]](
+	weight C,
+	bias F,
+	coords []C,
+	targets []bool,
+	loss ClassifierLoss[F],
+) F {
+	outputs := make([]F, len(coords))
+	for i, c := range coords {
+		outputs[i] = c.Dot(weight) + bias
+	}
+	lossForScale := func(scale F) F {
+		var total F
+		for i, target := range targets {
+			loss, _ := loss.LossAndGrad(outputs[i]*scale, target)
+			total += loss
+		}
+		return total
+	}
+
+	// Exponentially increase the scale to find an order-of-magnitude
+	// estimate of the optimal scale.
+	bestScale := F(1e-5)
+	bestLoss := lossForScale(bestScale)
+	for scale := bestScale * 2.0; scale < 1e5; scale *= 2 {
+		loss := lossForScale(scale)
+		if math.IsNaN(float64(loss)) || math.IsInf(float64(loss), 0) {
+			break
+		}
+		if loss < bestLoss {
+			bestLoss = loss
+			bestScale = scale
+		}
+	}
+
+	// Bisection search to find a local minimum.
+	minScale := bestScale / 2.0
+	maxScale := bestScale * 2.0
+	for i := 0; i < 16; i++ {
+		s1 := (minScale*0.75 + maxScale*0.25)
+		s2 := (minScale*0.25 + maxScale*0.75)
+		loss1 := lossForScale(s1)
+		loss2 := lossForScale(s2)
+		if loss1 < loss2 {
+			maxScale = s2
+		} else {
+			minScale = s1
+		}
+	}
+
+	return (minScale + maxScale) / 2
 }
 
 type LinearOptimizer[F constraints.Float, C Coord[F, C]] interface {

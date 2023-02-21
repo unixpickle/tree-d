@@ -157,6 +157,10 @@ func (t *TAO[F, C, T]) splitDecision(axis C, threshold F, coords []C, labels []T
 }
 
 func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights []F) (C, F) {
+	scale := LineSearchScale[F](w, b, coords, targets, HingeLoss[F]{})
+	w = w.Scale(scale)
+	b *= scale
+
 	result := LinearClassification[F, C](
 		w,
 		b,
