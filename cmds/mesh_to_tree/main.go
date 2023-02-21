@@ -20,14 +20,17 @@ func main() {
 	var taoIters int
 	var depth int
 	var datasetSize int
+	var axisResolution int
 	var verbose bool
-	flag.Float64Var(&lr, "lr", 1.0, "learning rate for SVM training")
+	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
 	flag.Float64Var(&weightDecay, "weight-decay", 1e-4, "weight decay for SVM training")
 	flag.Float64Var(&momentum, "momentum", 0.9, "Nesterov momentum for SVM training")
-	flag.IntVar(&iters, "iters", 5000, "iterations for SVM training")
+	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
-	flag.IntVar(&depth, "depth", 8, "maximum tree depth")
+	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
+	flag.IntVar(&axisResolution, "axis-resolution", 2,
+		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
 	flag.Parse()
 
@@ -50,11 +53,7 @@ func main() {
 	coords, labels := MeshDataset(inputMesh, datasetSize)
 
 	log.Println("Building initial tree...")
-	axes := []model3d.Coord3D{
-		model3d.X(1),
-		model3d.Y(1),
-		model3d.Z(1),
-	}
+	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
 	tree := treed.GreedyTree[float64, model3d.Coord3D, bool](
 		axes,
 		coords,
@@ -87,7 +86,11 @@ func main() {
 	f, err = os.Create(outputPath)
 	essentials.Must(err)
 	defer f.Close()
-	essentials.Must(json.NewEncoder(f).Encode(tree))
+	essentials.Must(json.NewEncoder(f).Encode(&treed.BoundedTree[float64, model3d.Coord3D, bool]{
+		Min:  inputMesh.Min(),
+		Max:  inputMesh.Max(),
+		Tree: tree,
+	}))
 }
 
 func MeshDataset(mesh *model3d.Mesh, numPoints int) (points []model3d.Coord3D, labels []bool) {
