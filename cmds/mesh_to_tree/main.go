@@ -20,6 +20,7 @@ func main() {
 	var taoIters int
 	var depth int
 	var datasetSize int
+	var verbose bool
 	flag.Float64Var(&lr, "lr", 1.0, "learning rate for SVM training")
 	flag.Float64Var(&weightDecay, "weight-decay", 1e-4, "weight decay for SVM training")
 	flag.Float64Var(&momentum, "momentum", 0.9, "Nesterov momentum for SVM training")
@@ -27,6 +28,7 @@ func main() {
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 8, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
+	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
 	flag.Parse()
 
 	args := flag.Args()
@@ -69,7 +71,7 @@ func main() {
 		WeightDecay: weightDecay,
 		Momentum:    momentum,
 		Iters:       iters,
-		Verbose:     true,
+		Verbose:     verbose,
 	}
 	for i := 0; i < taoIters; i++ {
 		result := tao.Optimize(tree, coords, labels)
