@@ -7,21 +7,53 @@ import (
 )
 
 type ClassifierLoss[F constraints.Float] interface {
-	LossAndGrad(pred F, target bool) (F, F)
+	// LossAndGrad computes the loss and/or gradient of the loss.
+	//
+	// Both lossOut or gradOut may be passed, or one may be nil, but at least
+	// one of the two should be non-nil.
+	LossAndGrad(preds []F, targets []bool, lossOut, gradOut []F)
 }
 
 type HingeLoss[F constraints.Float] struct{}
 
-func (_ HingeLoss[F]) LossAndGrad(pred F, target bool) (F, F) {
-	var loss, grad F
-	if pred < 1 && target {
-		grad = 1.0
-		loss = 1 - pred
-	} else if pred > -1 && !target {
-		grad = -1.0
-		loss = (pred + 1)
+func (_ HingeLoss[F]) LossAndGrad(preds []F, targets []bool, lossOut, gradOut []F) {
+	if len(preds) != len(targets) {
+		panic("mismatching input sizes")
 	}
-	return loss, grad
+	if lossOut == nil && gradOut == nil {
+		panic("must provide lossOut or gradOut")
+	}
+	if lossOut != nil && len(lossOut) != len(preds) {
+		print("incorrect lossOut size")
+	}
+	if gradOut != nil && len(gradOut) != len(preds) {
+		print("incorrect gradOut size")
+	}
+	for i, p := range preds {
+		t := targets[i]
+		if p < 1 && t {
+			if gradOut != nil {
+				gradOut[i] = -1.0
+			}
+			if lossOut != nil {
+				lossOut[i] = 1 - p
+			}
+		} else if p > -1 && !t {
+			if gradOut != nil {
+				gradOut[i] = 1.0
+			}
+			if lossOut != nil {
+				lossOut[i] = (p + 1)
+			}
+		} else {
+			if gradOut != nil {
+				gradOut[i] = 0
+			}
+			if lossOut != nil {
+				lossOut[i] = 0
+			}
+		}
+	}
 }
 
 func LineSearchScale[F constraints.Float, C Coord[F, C]](
@@ -35,10 +67,18 @@ func LineSearchScale[F constraints.Float, C Coord[F, C]](
 	for i, c := range coords {
 		outputs[i] = c.Dot(weight) + bias
 	}
+
+	// Temporary buffers.
+	scaled := make([]F, len(outputs))
+	losses := make([]F, len(outputs))
+
 	lossForScale := func(scale F) F {
+		for i, x := range outputs {
+			scaled[i] = x * scale
+		}
+		loss.LossAndGrad(scaled, targets, losses, nil)
 		var total F
-		for i, target := range targets {
-			loss, _ := loss.LossAndGrad(outputs[i]*scale, target)
+		for _, loss := range losses {
 			total += loss
 		}
 		return total
@@ -124,8 +164,8 @@ func (s *SGDOptimizer[F, C]) Step(weightGrad C, biasGrad F) (C, F) {
 	if s.AnnealIters != 0 {
 		lr *= F(s.AnnealIters-s.iter) / F(s.AnnealIters)
 	}
-	s.weight = s.weight.Add(weightGrad.Scale(lr))
-	s.bias += biasGrad * lr
+	s.weight = s.weight.Add(weightGrad.Scale(-lr))
+	s.bias += -biasGrad * lr
 	s.iter++
 
 	return s.weight, s.bias
@@ -168,24 +208,33 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 
 	var initLoss, finalLoss, initAcc, finalAcc F
 
+	// Temporary buffers.
+	preds := make([]F, len(coords))
+	losses := make([]F, len(coords))
+	grads := make([]F, len(coords))
+
 	for iter := 0; iter < iters; iter++ {
+		var acc F
+		for i, c := range coords {
+			pred := w.Dot(c) + b
+			preds[i] = pred
+			if pred > 0 == targets[i] {
+				acc += weights[i]
+			}
+		}
+
+		lossFn.LossAndGrad(preds, targets, losses, grads)
+
 		var weightGrad C
 		var biasGrad F
 		var totalLoss F
-		var acc F
 		for i, c := range coords {
 			weight := weights[i] * meanScale
-			if weight == 0 {
-				continue
-			}
-			target := targets[i]
-			pred := w.Dot(c) + b
-			loss, lossGrad := lossFn.LossAndGrad(pred, target)
-			if pred > 0 == target {
-				acc += weight
-			}
-			weightGrad = weightGrad.Add(c.Scale(lossGrad * weight))
-			biasGrad += lossGrad * weight
+			loss := losses[i]
+			grad := grads[i]
+
+			weightGrad = weightGrad.Add(c.Scale(grad * weight))
+			biasGrad += grad * weight
 			totalLoss += loss * weight
 		}
 
