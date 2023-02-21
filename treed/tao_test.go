@@ -43,7 +43,6 @@ func TestTAO(t *testing.T) {
 		WeightDecay: 1e-3,
 		Momentum:    0.9,
 		Iters:       1000,
-		Verbose:     true,
 	}
 	result := tao.Optimize(tree, points, labels)
 	if result.OldLoss <= result.NewLoss {
