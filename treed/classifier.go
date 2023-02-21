@@ -209,11 +209,18 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 		}
 	}
 	meanScale := 1 / totalWeight
+	scaledWeights := make([]F, len(weights))
+	for i, x := range weights {
+		scaledWeights[i] = x * meanScale
+	}
 
 	var initLoss, finalLoss, initAcc, finalAcc F
 
-	// Temporary buffers.
+	// Cached (possibly optimized) representation of coords.
 	mvp := createMatVecProd[F, C](coords)
+	vws := createVecWeightedSum[F, C](coords)
+
+	// Temporary buffers.
 	preds := make([]F, len(coords))
 	losses := make([]F, len(coords))
 	grads := make([]F, len(coords))
@@ -221,22 +228,24 @@ func LinearClassification[F constraints.Float, C Coord[F, C]](
 	for iter := 0; iter < iters; iter++ {
 		mvp.MatVecProd(w, b, preds)
 		lossFn.LossAndGrad(preds, targets, losses, grads)
+		scaleFloats(grads, scaledWeights)
+		scaleFloats(losses, scaledWeights)
+
+		weightGrad := vws.VecWeightedSum(grads)
 
 		var acc F
-		var weightGrad C
+		for i, pred := range preds {
+			if pred > 0 == targets[i] {
+				acc += scaledWeights[i]
+			}
+		}
+
 		var biasGrad F
 		var totalLoss F
-		for i, c := range coords {
-			weight := weights[i] * meanScale
-			loss := losses[i]
+		for i, loss := range losses {
 			grad := grads[i]
-			if preds[i] > 0 == targets[i] {
-				acc += weights[i]
-			}
-
-			weightGrad = weightGrad.Add(c.Scale(grad * weight))
-			biasGrad += grad * weight
-			totalLoss += loss * weight
+			biasGrad += grad
+			totalLoss += loss
 		}
 
 		if iter == 0 {
@@ -315,4 +324,68 @@ func (c coord3DMatVecProd) MatVecProd(w model3d.Coord3D, b float64, out []float6
 		Inc:  1,
 	}
 	blas64.Gemv(blas.NoTrans, 1.0, c.Coords, inVec, 0.0, outVec)
+}
+
+type vecWeightedSum[F constraints.Float, C Coord[F, C]] interface {
+	VecWeightedSum(weights []F) C
+}
+
+func createVecWeightedSum[F constraints.Float, C Coord[F, C]](x any) vecWeightedSum[F, C] {
+	switch x := x.(type) {
+	case []model3d.Coord3D:
+		res := coord3DVecWeightedSum{
+			Coords: blas64.General{
+				Rows:   3,
+				Cols:   len(x),
+				Data:   make([]float64, 3*len(x)),
+				Stride: len(x),
+			},
+		}
+		for i, c := range x {
+			res.Coords.Data[i] = c.X
+			res.Coords.Data[i+len(x)] = c.Y
+			res.Coords.Data[i+len(x)*2] = c.Z
+		}
+		var obj any = res
+		return obj.(vecWeightedSum[F, C])
+	default:
+		return genericVecWeightedSum[F, C]{Coords: x.([]C)}
+	}
+}
+
+type genericVecWeightedSum[F constraints.Float, C Coord[F, C]] struct {
+	Coords []C
+}
+
+func (g genericVecWeightedSum[F, C]) VecWeightedSum(weights []F) C {
+	var sum C
+	for i, c := range g.Coords {
+		sum = sum.Add(c.Scale(weights[i]))
+	}
+	return sum
+}
+
+type coord3DVecWeightedSum struct {
+	Coords blas64.General
+}
+
+func (c coord3DVecWeightedSum) VecWeightedSum(w []float64) model3d.Coord3D {
+	inVec := blas64.Vector{
+		Data: w,
+		N:    len(w),
+		Inc:  1,
+	}
+	outVec := blas64.Vector{
+		Data: make([]float64, 3),
+		N:    3,
+		Inc:  1,
+	}
+	blas64.Gemv(blas.NoTrans, 1.0, c.Coords, inVec, 0.0, outVec)
+	return model3d.XYZ(outVec.Data[0], outVec.Data[1], outVec.Data[2])
+}
+
+func scaleFloats[F constraints.Float](inOut []F, scales []F) {
+	for i, x := range scales {
+		inOut[i] *= x
+	}
 }
