@@ -47,6 +47,60 @@ func (t *Tree[F, C, T]) String() string {
 	}
 }
 
+// SimplifyTree prunes the tree when it does not increase the loss.
+func (t *Tree[F, C, T]) Simplify(
+	coords []C,
+	targets []T,
+	loss TAOLoss[T],
+) *Tree[F, C, T] {
+	coords = append([]C{}, coords...)
+	targets = append([]T{}, targets...)
+	return t.simplify(coords, targets, loss)
+}
+
+func (t *Tree[F, C, T]) simplify(
+	coords []C,
+	targets []T,
+	loss TAOLoss[T],
+) *Tree[F, C, T] {
+	if t.IsLeaf() {
+		return t
+	}
+
+	idx := splitDecision(t.Axis, t.Threshold, coords, targets)
+	if idx == 0 {
+		return t.GreaterEqual
+	} else if idx == len(coords) {
+		return t.LessThan
+	}
+	left := t.LessThan.simplify(coords[:idx], targets[:idx], loss)
+	right := t.GreaterEqual.simplify(coords[idx:], targets[idx:], loss)
+
+	var leftBetter int
+	var rightBetter int
+	for i, c := range coords {
+		target := targets[i]
+		leftLoss := F(loss.Loss(target, left.Predict(c)))
+		rightLoss := F(loss.Loss(target, right.Predict(c)))
+		if leftLoss < rightLoss {
+			leftBetter++
+		} else if rightLoss < leftLoss {
+			rightBetter++
+		}
+	}
+	if leftBetter == 0 {
+		return right
+	} else if rightBetter == 0 {
+		return left
+	}
+	return &Tree[F, C, T]{
+		Axis:         t.Axis,
+		Threshold:    t.Threshold,
+		LessThan:     left,
+		GreaterEqual: right,
+	}
+}
+
 func indentText(text string) string {
 	lines := strings.Split(text, "\n")
 	for i, x := range lines {
