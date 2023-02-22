@@ -21,6 +21,8 @@ func main() {
 	var depth int
 	var datasetSize int
 	var taoDatasetSize int
+	var activePoints int
+	var activeGridSize int
 	var axisResolution int
 	var verbose bool
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -30,7 +32,10 @@ func main() {
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
-	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 10000000, "number of points to sample for TAO")
+	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 1000000, "number of points to sample for TAO")
+	flag.IntVar(&activePoints, "active-points", 50000,
+		"number of points to sample for active learning steps")
+	flag.IntVar(&activeGridSize, "active-grid-size", 64, "grid size for active learning mesh")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -80,6 +85,28 @@ func main() {
 		Verbose:     verbose,
 	}
 	for i := 0; i < taoIters; i++ {
+		if activePoints > 0 {
+			log.Printf("Sampling %d active learning points...", activePoints)
+			min, max := PaddedBounds(solid)
+			samples := treed.SampleDecisionBoundary(
+				tree,
+				activePoints,
+				activeGridSize,
+				min,
+				max,
+			)
+			var numCorrect int
+			for _, c := range samples {
+				label := solid.Contains(c)
+				pred := tree.Predict(c)
+				coords = append(coords, c)
+				labels = append(labels, label)
+				if pred == label {
+					numCorrect++
+				}
+			}
+			log.Printf("=> surface accuracy is %f", float64(numCorrect)/float64(activePoints))
+		}
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
 			log.Printf("no improvement at iteration %d: loss=%f", i, result.OldLoss)
@@ -107,10 +134,7 @@ func main() {
 }
 
 func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D, labels []bool) {
-	min, max := solid.Min(), solid.Max()
-	size := min.Dist(max)
-	min = min.AddScalar(-size * 0.1)
-	max = max.AddScalar(size * 0.1)
+	min, max := PaddedBounds(solid)
 
 	points = make([]model3d.Coord3D, numPoints)
 	labels = make([]bool, numPoints)
@@ -122,5 +146,13 @@ func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D,
 		labels[i] = label
 	})
 
+	return
+}
+
+func PaddedBounds(solid model3d.Solid) (min, max model3d.Coord3D) {
+	min, max = solid.Min(), solid.Max()
+	size := min.Dist(max)
+	min = min.AddScalar(-size * 0.1)
+	max = max.AddScalar(size * 0.1)
 	return
 }
