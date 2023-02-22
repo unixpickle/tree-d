@@ -74,6 +74,7 @@ func main() {
 
 	log.Println("Sampling TAO dataset...")
 	coords, labels = SolidDataset(solid, taoDatasetSize)
+	testCoords, testLabels := SolidDataset(solid, taoDatasetSize)
 
 	log.Println("Refining tree with TAO...")
 	tao := treed.TAO[float64, model3d.Coord3D, bool]{
@@ -84,6 +85,7 @@ func main() {
 		Iters:       iters,
 		Verbose:     verbose,
 	}
+	testLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
 	for i := 0; i < taoIters; i++ {
 		if activePoints > 0 {
 			log.Printf("Sampling %d active learning points...", activePoints)
@@ -109,10 +111,16 @@ func main() {
 		}
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
-			log.Printf("no improvement at iteration %d: loss=%f", i, result.OldLoss)
+			log.Printf("no improvement at iteration %d: loss=%f test_loss=%f", i, result.OldLoss,
+				testLoss)
 			break
 		}
-		log.Printf("TAO iteration %d: loss=%f->%f", i, result.OldLoss, result.NewLoss)
+		newTestLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
+
+		log.Printf("TAO iteration %d: loss=%f->%f test_loss=%f->%f", i, result.OldLoss,
+			result.NewLoss, testLoss, newTestLoss)
+
+		testLoss = newTestLoss
 		tree = result.Tree
 	}
 

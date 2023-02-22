@@ -58,7 +58,7 @@ func (t *TAO[F, C, T]) optimize(
 		return t.optimizeLeaf(tree, coords, labels)
 	}
 
-	oldLoss := t.evaluateLoss(tree, coords, labels)
+	oldLoss := t.EvaluateLoss(tree, coords, labels)
 
 	// Note that this has side-effects. In particular, coords and labels are
 	// re-ordered to split the decision boundary.
@@ -91,7 +91,7 @@ func (t *TAO[F, C, T]) optimize(
 				LessThan:     leftResult.Tree,
 				GreaterEqual: rightResult.Tree,
 			}
-			newLoss := t.evaluateLoss(newTree, coords, labels)
+			newLoss := t.EvaluateLoss(newTree, coords, labels)
 			return TAOResult[F, C, T]{
 				Tree:    tree,
 				OldLoss: oldLoss,
@@ -119,8 +119,8 @@ func (t *TAO[F, C, T]) optimize(
 		LessThan:     leftResult.Tree,
 		GreaterEqual: rightResult.Tree,
 	}
-	newLoss := t.evaluateLoss(newTree, coords, labels)
-	alternativeNewLoss := t.evaluateLoss(alternativeNewTree, coords, labels)
+	newLoss := t.EvaluateLoss(newTree, coords, labels)
+	alternativeNewLoss := t.EvaluateLoss(alternativeNewTree, coords, labels)
 	if t.Verbose {
 		log.Printf("old_loss=%f new_loss=%f alternative=%f", oldLoss, newLoss, alternativeNewLoss)
 	}
@@ -146,11 +146,11 @@ func (t *TAO[F, C, T]) optimizeLeaf(
 	coords []C,
 	labels []T,
 ) TAOResult[F, C, T] {
-	oldLoss := t.evaluateLoss(tree, coords, labels)
+	oldLoss := t.EvaluateLoss(tree, coords, labels)
 	newLeaf := &Tree[F, C, T]{
 		Leaf: t.Loss.Predict(NewListSlice(labels)),
 	}
-	newLoss := t.evaluateLoss(newLeaf, coords, labels)
+	newLoss := t.EvaluateLoss(newLeaf, coords, labels)
 	if newLoss >= oldLoss {
 		newLeaf = tree
 		newLoss = oldLoss
@@ -162,7 +162,7 @@ func (t *TAO[F, C, T]) optimizeLeaf(
 	}
 }
 
-func (t *TAO[F, C, T]) evaluateLoss(tree *Tree[F, C, T], coords []C, labels []T) float64 {
+func (t *TAO[F, C, T]) EvaluateLoss(tree *Tree[F, C, T], coords []C, labels []T) float64 {
 	var total float64
 	for i, c := range coords {
 		label := labels[i]
