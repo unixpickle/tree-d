@@ -115,7 +115,7 @@ func main() {
 				testLoss)
 			break
 		}
-		newTestLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
+		newTestLoss := tao.EvaluateLoss(result.Tree, testCoords, testLabels)
 
 		log.Printf("TAO iteration %d: loss=%f->%f test_loss=%f->%f", i, result.OldLoss,
 			result.NewLoss, testLoss, newTestLoss)
