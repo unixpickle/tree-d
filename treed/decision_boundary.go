@@ -9,10 +9,14 @@ import (
 	"github.com/unixpickle/model3d/render3d"
 )
 
+// SampleDecisionBoundary samples points near the surface defined by a boolean
+// field, assuming that the field is never true outside the bounds.
 func SampleDecisionBoundary(
 	t *Tree[float64, model3d.Coord3D, bool],
-	numPoints, gridSize int,
-	min, max model3d.Coord3D,
+	numPoints int,
+	gridSize int,
+	min model3d.Coord3D,
+	max model3d.Coord3D,
 ) []model3d.Coord3D {
 	rotation := model3d.Rotation(model3d.NewCoord3DRandUnit(), rand.Float64()*math.Pi*2)
 	solid := model3d.CheckedFuncSolid(
