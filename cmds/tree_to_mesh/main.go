@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -28,8 +27,8 @@ func main() {
 
 	log.Println("Loading tree...")
 	f, err := os.Open(inputPath)
-	var tree treed.BoundedSolidTree
-	err = json.NewDecoder(f).Decode(&tree)
+	essentials.Must(err)
+	tree, err := treed.ReadBoundedSolidTree(f)
 	f.Close()
 	essentials.Must(err)
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -152,7 +151,7 @@ func main() {
 	f, err = os.Create(outputPath)
 	essentials.Must(err)
 	defer f.Close()
-	essentials.Must(json.NewEncoder(f).Encode(&treed.BoundedSolidTree{
+	essentials.Must(treed.WriteBoundedSolidTree(f, &treed.BoundedSolidTree{
 		Min:  inputMesh.Min(),
 		Max:  inputMesh.Max(),
 		Tree: tree,
