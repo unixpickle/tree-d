@@ -22,6 +22,7 @@ func main() {
 	var depth int
 	var datasetSize int
 	var taoDatasetSize int
+	var activeRebuilds int
 	var activePoints int
 	var activeGridSize int
 	var activeEpsilon float64
@@ -35,6 +36,8 @@ func main() {
 	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
 	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 1000000, "number of points to sample for TAO")
+	flag.IntVar(&activeRebuilds, "active-rebuilds", 1,
+		"number of times to rebuild with active learning")
 	flag.IntVar(&activePoints, "active-points", 50000,
 		"number of points to sample for active learning steps")
 	flag.IntVar(&activeGridSize, "active-grid-size", 64, "grid size for active learning mesh")
@@ -74,9 +77,33 @@ func main() {
 		0,
 		depth,
 	)
+	for i := 0; i < activeRebuilds; i++ {
+		log.Printf("Apply active learning rebuild %d/%d...", i+1, activeRebuilds)
+		coords, labels = ActiveLearning(
+			tree,
+			solid,
+			coords,
+			labels,
+			activePoints,
+			activeGridSize,
+			activeEpsilon,
+		)
+		tree = treed.GreedyTree[float64, model3d.Coord3D, bool](
+			axes,
+			coords,
+			labels,
+			treed.EntropySplitLoss[float64]{},
+			0,
+			depth,
+		)
+	}
 
 	log.Println("Sampling TAO dataset...")
-	coords, labels = SolidDataset(solid, taoDatasetSize)
+	if len(coords) < taoDatasetSize {
+		newCoords, newLabels := SolidDataset(solid, taoDatasetSize-len(coords))
+		coords = append(coords, newCoords...)
+		labels = append(labels, newLabels...)
+	}
 	testCoords, testLabels := SolidDataset(solid, taoDatasetSize)
 
 	log.Println("Refining tree with TAO...")
@@ -90,52 +117,16 @@ func main() {
 	}
 	testLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
 	for i := 0; i < taoIters; i++ {
-		if activePoints > 0 {
-			log.Printf("Sampling %d active learning points...", activePoints)
-			min, max := PaddedBounds(solid)
-			epsilon := min.Dist(max) * activeEpsilon
+		coords, labels = ActiveLearning(
+			tree,
+			solid,
+			coords,
+			labels,
+			activePoints,
+			activeGridSize,
+			activeEpsilon,
+		)
 
-			activeSamples := treed.SampleDecisionBoundary(
-				tree,
-				activePoints/2,
-				activeGridSize,
-				min,
-				max,
-			)
-
-			// Sample some points slightly outside the decision boundary
-			// to allow faster growth/shrinking.
-			for i := 0; i < len(activeSamples); i += 2 {
-				activeSamples[i] = activeSamples[i].Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
-			}
-
-			// Sample near points that are misclassified.
-			var badPoints []model3d.Coord3D
-			for i, c := range coords {
-				if tree.Predict(c) != labels[i] {
-					badPoints = append(badPoints, c)
-				}
-			}
-			if len(badPoints) > 0 {
-				for i := 0; i < activePoints/2; i++ {
-					point := badPoints[rand.Intn(len(badPoints))]
-					point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
-					activeSamples = append(activeSamples, point)
-				}
-			}
-
-			var numCorrect int
-			for _, c := range activeSamples {
-				label := solid.Contains(c)
-				pred := tree.Predict(c)
-				coords = append(coords, c)
-				labels = append(labels, label)
-				if pred == label {
-					numCorrect++
-				}
-			}
-			log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
-		}
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
 			log.Printf("no improvement at iteration %d: loss=%f test_loss=%f", i, result.OldLoss,
@@ -190,4 +181,65 @@ func PaddedBounds(solid model3d.Solid) (min, max model3d.Coord3D) {
 	min = min.AddScalar(-size * 0.1)
 	max = max.AddScalar(size * 0.1)
 	return
+}
+
+func ActiveLearning(
+	tree *treed.Tree[float64, model3d.Coord3D, bool],
+	solid model3d.Solid,
+	coords []model3d.Coord3D,
+	labels []bool,
+	activePoints int,
+	activeGridSize int,
+	activeEpsilon float64,
+) ([]model3d.Coord3D, []bool) {
+	if activePoints == 0 {
+		return coords, labels
+	}
+
+	log.Printf("Creating %d active learning samples...", activePoints)
+	min, max := PaddedBounds(solid)
+	epsilon := min.Dist(max) * activeEpsilon
+
+	activeSamples := treed.SampleDecisionBoundary(
+		tree,
+		activePoints/2,
+		activeGridSize,
+		min,
+		max,
+	)
+
+	// Sample some points slightly outside the decision boundary
+	// to allow faster growth/shrinking.
+	for i := 0; i < len(activeSamples); i += 2 {
+		activeSamples[i] = activeSamples[i].Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
+	}
+
+	// Sample around points that are misclassified.
+	var badPoints []model3d.Coord3D
+	for i, c := range coords {
+		if tree.Predict(c) != labels[i] {
+			badPoints = append(badPoints, c)
+		}
+	}
+	if len(badPoints) > 0 {
+		for i := 0; i < activePoints/2; i++ {
+			point := badPoints[rand.Intn(len(badPoints))]
+			point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
+			activeSamples = append(activeSamples, point)
+		}
+	}
+
+	var numCorrect int
+	for _, c := range activeSamples {
+		label := solid.Contains(c)
+		pred := tree.Predict(c)
+		coords = append(coords, c)
+		labels = append(labels, label)
+		if pred == label {
+			numCorrect++
+		}
+	}
+	log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
+
+	return coords, labels
 }
