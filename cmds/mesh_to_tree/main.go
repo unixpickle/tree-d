@@ -93,6 +93,8 @@ func main() {
 		if activePoints > 0 {
 			log.Printf("Sampling %d active learning points...", activePoints)
 			min, max := PaddedBounds(solid)
+			epsilon := min.Dist(max) * activeEpsilon
+
 			activeSamples := treed.SampleDecisionBoundary(
 				tree,
 				activePoints/2,
@@ -100,6 +102,12 @@ func main() {
 				min,
 				max,
 			)
+
+			// Sample some points slightly outside the decision boundary
+			// to allow faster growth/shrinking.
+			for i := 0; i < len(activeSamples); i += 2 {
+				activeSamples[i] = activeSamples[i].Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
+			}
 
 			// Sample near points that are misclassified.
 			var badPoints []model3d.Coord3D
@@ -109,7 +117,6 @@ func main() {
 				}
 			}
 			if len(badPoints) > 0 {
-				epsilon := min.Dist(max) * activeEpsilon
 				for i := 0; i < activePoints/2; i++ {
 					point := badPoints[rand.Intn(len(badPoints))]
 					point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
