@@ -109,8 +109,8 @@ func main() {
 				}
 			}
 			if len(badPoints) > 0 {
+				epsilon := min.Dist(max) * activeEpsilon
 				for i := 0; i < activePoints/2; i++ {
-					epsilon := min.Dist(max) * activeEpsilon
 					point := badPoints[rand.Intn(len(badPoints))]
 					point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
 					activeSamples = append(activeSamples, point)
