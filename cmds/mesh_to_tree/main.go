@@ -152,7 +152,7 @@ func main() {
 	f, err = os.Create(outputPath)
 	essentials.Must(err)
 	defer f.Close()
-	essentials.Must(json.NewEncoder(f).Encode(&treed.BoundedTree[float64, model3d.Coord3D, bool]{
+	essentials.Must(json.NewEncoder(f).Encode(&treed.BoundedSolidTree{
 		Min:  inputMesh.Min(),
 		Max:  inputMesh.Max(),
 		Tree: tree,
@@ -184,7 +184,7 @@ func PaddedBounds(solid model3d.Solid) (min, max model3d.Coord3D) {
 }
 
 func ActiveLearning(
-	tree *treed.Tree[float64, model3d.Coord3D, bool],
+	tree *treed.SolidTree,
 	solid model3d.Solid,
 	coords []model3d.Coord3D,
 	labels []bool,

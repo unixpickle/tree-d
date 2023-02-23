@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/unixpickle/model3d/model3d"
 	"golang.org/x/exp/constraints"
 )
+
+type SolidTree = Tree[float64, model3d.Coord3D, bool]
 
 type Tree[F constraints.Float, C Coord[F, C], T any] struct {
 	Axis         C

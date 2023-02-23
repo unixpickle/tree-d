@@ -12,7 +12,7 @@ import (
 // SampleDecisionBoundary samples points near the surface defined by a boolean
 // field, assuming that the field is never true outside the bounds.
 func SampleDecisionBoundary(
-	t *Tree[float64, model3d.Coord3D, bool],
+	t *SolidTree,
 	numPoints int,
 	gridSize int,
 	min model3d.Coord3D,

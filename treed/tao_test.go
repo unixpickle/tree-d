@@ -131,7 +131,7 @@ func BenchmarkTAO(b *testing.B) {
 	}
 }
 
-func boolAccuracy(tree *Tree[float64, model3d.Coord3D, bool], coords []model3d.Coord3D, labels []bool) float64 {
+func boolAccuracy(tree *SolidTree, coords []model3d.Coord3D, labels []bool) float64 {
 	count := 0
 	for i, c := range coords {
 		label := labels[i]

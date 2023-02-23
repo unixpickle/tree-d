@@ -28,7 +28,7 @@ func main() {
 
 	log.Println("Loading tree...")
 	f, err := os.Open(inputPath)
-	var tree treed.BoundedTree[float64, model3d.Coord3D, bool]
+	var tree treed.BoundedSolidTree
 	err = json.NewDecoder(f).Decode(&tree)
 	f.Close()
 	essentials.Must(err)
