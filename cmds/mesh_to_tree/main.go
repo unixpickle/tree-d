@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/rand"
 	"os"
 
 	"github.com/unixpickle/essentials"
@@ -23,6 +24,7 @@ func main() {
 	var taoDatasetSize int
 	var activePoints int
 	var activeGridSize int
+	var activeEpsilon float64
 	var axisResolution int
 	var verbose bool
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -36,6 +38,7 @@ func main() {
 	flag.IntVar(&activePoints, "active-points", 50000,
 		"number of points to sample for active learning steps")
 	flag.IntVar(&activeGridSize, "active-grid-size", 64, "grid size for active learning mesh")
+	flag.Float64Var(&activeEpsilon, "active-epsilon", 0.01, "noise scale for active learning")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -90,15 +93,32 @@ func main() {
 		if activePoints > 0 {
 			log.Printf("Sampling %d active learning points...", activePoints)
 			min, max := PaddedBounds(solid)
-			samples := treed.SampleDecisionBoundary(
+			activeSamples := treed.SampleDecisionBoundary(
 				tree,
-				activePoints,
+				activePoints/2,
 				activeGridSize,
 				min,
 				max,
 			)
+
+			// Sample near points that are misclassified.
+			var badPoints []model3d.Coord3D
+			for i, c := range coords {
+				if tree.Predict(c) != labels[i] {
+					badPoints = append(badPoints, c)
+				}
+			}
+			if len(badPoints) > 0 {
+				for i := 0; i < activePoints/2; i++ {
+					epsilon := min.Dist(max) * activeEpsilon
+					point := badPoints[rand.Intn(len(badPoints))]
+					point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
+					activeSamples = append(activeSamples, point)
+				}
+			}
+
 			var numCorrect int
-			for _, c := range samples {
+			for _, c := range activeSamples {
 				label := solid.Contains(c)
 				pred := tree.Predict(c)
 				coords = append(coords, c)
@@ -107,7 +127,7 @@ func main() {
 					numCorrect++
 				}
 			}
-			log.Printf("=> surface accuracy is %f", float64(numCorrect)/float64(activePoints))
+			log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
 		}
 		result := tao.Optimize(tree, coords, labels)
 		if result.NewLoss >= result.OldLoss {
