@@ -3,6 +3,8 @@ package treed
 import (
 	"log"
 	"math"
+	"runtime"
+	"sync/atomic"
 
 	"golang.org/x/exp/constraints"
 )
@@ -29,6 +31,10 @@ type TAO[F constraints.Float, C Coord[F, C], T any] struct {
 	// Iters is the number of optimization iterations to perform.
 	Iters int
 
+	// Concurrency, if specified, controls the maximum number of Goroutines to
+	// use for optimization.
+	Concurrency int
+
 	// Verbose, if true, enables printing during training.
 	Verbose bool
 }
@@ -40,10 +46,14 @@ func (t *TAO[F, C, T]) Optimize(
 ) TAOResult[F, C, T] {
 	coords = append([]C{}, coords...)
 	labels = append([]T{}, labels...)
-	return t.optimize(tree, coords, labels)
+	q := newForkQueue[TAOResult[F, C, T]](t.Concurrency)
+	return q.Run(func() TAOResult[F, C, T] {
+		return t.optimize(q, tree, coords, labels)
+	})
 }
 
 func (t *TAO[F, C, T]) optimize(
+	queue *forkQueue[TAOResult[F, C, T]],
 	tree *Tree[F, C, T],
 	coords []C,
 	labels []T,
@@ -63,8 +73,14 @@ func (t *TAO[F, C, T]) optimize(
 	// Note that this has side-effects. In particular, coords and labels are
 	// re-ordered to split the decision boundary.
 	splitIdx := splitDecision(tree.Axis, tree.Threshold, coords, labels)
-	leftResult := t.optimize(tree.LessThan, coords[:splitIdx], labels[:splitIdx])
-	rightResult := t.optimize(tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
+	leftResult, rightResult := queue.Fork(
+		func() TAOResult[F, C, T] {
+			return t.optimize(queue, tree.LessThan, coords[:splitIdx], labels[:splitIdx])
+		},
+		func() TAOResult[F, C, T] {
+			return t.optimize(queue, tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
+		},
+	)
 
 	clsTargets := make([]bool, 0, len(coords))
 	clsWeights := make([]F, 0, len(coords))
@@ -224,4 +240,69 @@ func splitDecision[F constraints.Float, C Coord[F, C], T any](
 		}
 	}
 	return len(coords) - numPositive
+}
+
+type forkQueueTask[T any] struct {
+	Started int32
+	F       func() T
+	Result  chan T
+}
+
+// A forkQueue lets you run recursive tasks with a fixed maximum number of
+// Goroutines. To use the queue, create with newForkQueue(), then run the root
+// task with Run(). Within a task, you may call Fork() to run two sub-tasks,
+// potentially allowing separate goroutines to run the two sub-tasks.
+type forkQueue[T any] struct {
+	queue chan *forkQueueTask[T]
+}
+
+func newForkQueue[T any](numWorkers int) *forkQueue[T] {
+	if numWorkers == 0 {
+		numWorkers = runtime.GOMAXPROCS(0)
+	}
+	res := &forkQueue[T]{
+		queue: make(chan *forkQueueTask[T], numWorkers*1000),
+	}
+	for i := 0; i < numWorkers; i++ {
+		go res.worker()
+	}
+	return res
+}
+
+func (f *forkQueue[T]) Run(fn func() T) T {
+	defer close(f.queue)
+	task := &forkQueueTask[T]{F: fn, Result: make(chan T, 1)}
+	f.queue <- task
+	return <-task.Result
+}
+
+func (f *forkQueue[T]) Fork(fn1, fn2 func() T) (T, T) {
+	task := &forkQueueTask[T]{F: fn2, Result: make(chan T, 1)}
+	select {
+	case f.queue <- task:
+	default:
+		// Prevent unbounded memory growth by running the task locally.
+		task.Started = 1
+		task.Result <- task.F()
+	}
+	result1 := fn1()
+	var result2 T
+	if atomic.SwapInt32(&task.Started, 1) == 0 {
+		// Task hasn't been started yet, so we kick it off
+		// on this worker.
+		result2 = fn2()
+	} else {
+		result2 = <-task.Result
+	}
+	return result1, result2
+}
+
+func (f *forkQueue[T]) worker() {
+	for task := range f.queue {
+		if atomic.SwapInt32(&task.Started, 1) != 0 {
+			// Task already started on a different thread.
+			continue
+		}
+		task.Result <- task.F()
+	}
 }
