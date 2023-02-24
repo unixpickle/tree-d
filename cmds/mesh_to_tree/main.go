@@ -195,50 +195,28 @@ func ActiveLearning(
 		return coords, labels
 	}
 
-	log.Printf("Creating %d active learning samples...", activePoints)
 	min, max := PaddedBounds(solid)
-	epsilon := min.Dist(max) * activeEpsilon
 
-	activeSamples := treed.SampleDecisionBoundary(
-		tree,
-		activePoints/2,
-		activeGridSize,
-		min,
-		max,
-	)
-
-	// Sample some points slightly outside the decision boundary
-	// to allow faster growth/shrinking.
-	for i := 0; i < len(activeSamples); i += 2 {
-		activeSamples[i] = activeSamples[i].Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
-	}
-
-	// Sample around points that are misclassified.
-	var badPoints []model3d.Coord3D
-	for i, c := range coords {
-		if tree.Predict(c) != labels[i] {
-			badPoints = append(badPoints, c)
+	activeSamples := make([]model3d.Coord3D, activePoints)
+	newLabels := make([]bool, activePoints)
+	essentials.StatefulConcurrentMap(0, activePoints, func() func(i int) {
+		gen := rand.New(rand.NewSource(rand.Int63()))
+		return func(i int) {
+			for {
+				sample := model3d.XYZ(
+					gen.Float64(),
+					gen.Float64(),
+					gen.Float64(),
+				).Mul(max.Sub(min)).Add(min)
+				target := solid.Contains(sample)
+				if tree.Predict(sample) != target {
+					activeSamples[i] = sample
+					newLabels[i] = target
+					return
+				}
+			}
 		}
-	}
-	if len(badPoints) > 0 {
-		for i := 0; i < activePoints/2; i++ {
-			point := badPoints[rand.Intn(len(badPoints))]
-			point = point.Add(model3d.NewCoord3DRandNorm().Scale(epsilon))
-			activeSamples = append(activeSamples, point)
-		}
-	}
+	})
 
-	var numCorrect int
-	for _, c := range activeSamples {
-		label := solid.Contains(c)
-		pred := tree.Predict(c)
-		coords = append(coords, c)
-		labels = append(labels, label)
-		if pred == label {
-			numCorrect++
-		}
-	}
-	log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
-
-	return coords, labels
+	return append(coords, activeSamples...), append(labels, newLabels...)
 }
