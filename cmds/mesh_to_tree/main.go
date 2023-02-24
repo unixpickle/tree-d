@@ -77,6 +77,7 @@ func main() {
 		depth,
 	)
 	for i := 0; i < activeRebuilds; i++ {
+		essentials.Must(WriteTree(outputPath, solid, tree))
 		log.Printf("Apply active learning rebuild %d/%d...", i+1, activeRebuilds)
 		coords, labels = ActiveLearning(
 			tree,
@@ -116,6 +117,7 @@ func main() {
 	}
 	testLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
 	for i := 0; i < taoIters; i++ {
+		essentials.Must(WriteTree(outputPath, solid, tree))
 		coords, labels = ActiveLearning(
 			tree,
 			solid,
@@ -148,14 +150,20 @@ func main() {
 	log.Printf(" => went from %d to %d leaves", oldCount, newCount)
 
 	log.Println("Writing output...")
-	f, err = os.Create(outputPath)
-	essentials.Must(err)
+	essentials.Must(WriteTree(outputPath, solid, tree))
+}
+
+func WriteTree(outputPath string, solid model3d.Solid, tree *treed.SolidTree) error {
+	f, err := os.Create(outputPath)
+	if err != nil {
+		return err
+	}
 	defer f.Close()
-	essentials.Must(treed.WriteBoundedSolidTree(f, &treed.BoundedSolidTree{
-		Min:  inputMesh.Min(),
-		Max:  inputMesh.Max(),
+	return treed.WriteBoundedSolidTree(f, &treed.BoundedSolidTree{
+		Min:  solid.Min(),
+		Max:  solid.Max(),
 		Tree: tree,
-	}))
+	})
 }
 
 func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D, labels []bool) {
