@@ -21,11 +21,12 @@ func main() {
 	var depth int
 	var datasetSize int
 	var taoDatasetSize int
+	var surfaceSamples int
+	var surfaceEpsilon float64
 	var activeRebuilds int
 	var activePoints int
 	var activeGridSize int
 	var activeEpsilon float64
-	var surfaceEpsilon float64
 	var axisResolution int
 	var verbose bool
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -35,6 +36,9 @@ func main() {
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
+	flag.IntVar(&surfaceSamples, "surface-samples", 0,
+		"number of points to sample near the surface for the dataset")
+	flag.Float64Var(&surfaceEpsilon, "surface-epsilon", 0.01, "noise scale for sampling near surface")
 	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 1000000, "number of points to sample for TAO")
 	flag.IntVar(&activeRebuilds, "active-rebuilds", 1,
 		"number of times to rebuild with active learning")
@@ -42,7 +46,6 @@ func main() {
 		"number of points to sample for active learning steps")
 	flag.IntVar(&activeGridSize, "active-grid-size", 64, "grid size for active learning mesh")
 	flag.Float64Var(&activeEpsilon, "active-epsilon", 0.01, "noise scale for active learning")
-	flag.Float64Var(&surfaceEpsilon, "surface-epsilon", 0.01, "noise scale for sampling near surface")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -66,10 +69,12 @@ func main() {
 	inputMesh := model3d.NewMeshTriangles(inputTris)
 	coll := model3d.MeshToCollider(inputMesh)
 	solid := model3d.NewColliderSolid(coll)
-	coords, labels := SolidDataset(solid, datasetSize/2)
-	meshCoords, meshLabels := MeshDataset(inputMesh, solid, datasetSize/2, surfaceEpsilon)
-	coords = append(coords, meshCoords...)
-	labels = append(labels, meshLabels...)
+	coords, labels := SolidDataset(solid, datasetSize-surfaceSamples)
+	if surfaceSamples > 0 {
+		meshCoords, meshLabels := MeshDataset(inputMesh, solid, datasetSize/2, surfaceEpsilon)
+		coords = append(coords, meshCoords...)
+		labels = append(labels, meshLabels...)
+	}
 
 	log.Println("Building initial tree...")
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
