@@ -25,6 +25,7 @@ func main() {
 	var activePoints int
 	var activeGridSize int
 	var activeEpsilon float64
+	var surfaceEpsilon float64
 	var axisResolution int
 	var verbose bool
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -41,6 +42,7 @@ func main() {
 		"number of points to sample for active learning steps")
 	flag.IntVar(&activeGridSize, "active-grid-size", 64, "grid size for active learning mesh")
 	flag.Float64Var(&activeEpsilon, "active-epsilon", 0.01, "noise scale for active learning")
+	flag.Float64Var(&surfaceEpsilon, "surface-epsilon", 0.01, "noise scale for sampling near surface")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -64,7 +66,10 @@ func main() {
 	inputMesh := model3d.NewMeshTriangles(inputTris)
 	coll := model3d.MeshToCollider(inputMesh)
 	solid := model3d.NewColliderSolid(coll)
-	coords, labels := SolidDataset(solid, datasetSize)
+	coords, labels := SolidDataset(solid, datasetSize/2)
+	meshCoords, meshLabels := MeshDataset(inputMesh, solid, datasetSize/2, surfaceEpsilon)
+	coords = append(coords, meshCoords...)
+	labels = append(labels, meshLabels...)
 
 	log.Println("Building initial tree...")
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
@@ -179,6 +184,27 @@ func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D,
 		labels[i] = label
 	})
 
+	return
+}
+
+func MeshDataset(
+	mesh *model3d.Mesh,
+	solid model3d.Solid,
+	numPoints int,
+	eps float64,
+) (points []model3d.Coord3D, labels []bool) {
+	points = make([]model3d.Coord3D, numPoints)
+	labels = make([]bool, numPoints)
+	delta := eps * mesh.Min().Dist(mesh.Max())
+	essentials.StatefulConcurrentMap(0, numPoints, func() func(int) {
+		sampler := treed.MeshPointSampler(mesh)
+		return func(i int) {
+			point := sampler().Add(model3d.NewCoord3DRandNorm().Scale(delta))
+			label := solid.Contains(point)
+			points[i] = point
+			labels[i] = label
+		}
+	})
 	return
 }
 

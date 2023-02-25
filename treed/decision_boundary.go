@@ -34,7 +34,7 @@ func SampleDecisionBoundary(
 
 	res := make([]model3d.Coord3D, numPoints)
 	essentials.StatefulConcurrentMap(0, numPoints, func() func(int) {
-		sampler := pointSampler(mesh)
+		sampler := MeshPointSampler(mesh)
 		return func(i int) {
 			res[i] = sampler()
 		}
@@ -43,7 +43,7 @@ func SampleDecisionBoundary(
 	return res
 }
 
-func pointSampler(mesh *model3d.Mesh) func() model3d.Coord3D {
+func MeshPointSampler(mesh *model3d.Mesh) func() model3d.Coord3D {
 	gen := rand.New(rand.NewSource(rand.Int63()))
 	light := render3d.NewMeshAreaLight(mesh, render3d.NewColor(1))
 	return func() model3d.Coord3D {
