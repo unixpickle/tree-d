@@ -100,9 +100,9 @@ func main() {
 
 	log.Println("Sampling TAO dataset...")
 	if len(coords) < taoDatasetSize {
-		newCoords, activeLabels := SolidDataset(solid, taoDatasetSize-len(coords))
+		newCoords, newLabels := SolidDataset(solid, taoDatasetSize-len(coords))
 		coords = append(coords, newCoords...)
-		labels = append(labels, activeLabels...)
+		labels = append(labels, newLabels...)
 	}
 	testCoords, testLabels := SolidDataset(solid, taoDatasetSize)
 
@@ -206,7 +206,7 @@ func ActiveLearning(
 	min, max := PaddedBounds(solid)
 
 	activeSamples := make([]model3d.Coord3D, activePoints)
-	activeLabels := make([]bool, activePoints)
+	newLabels := make([]bool, activePoints)
 	essentials.StatefulConcurrentMap(0, activePoints, func() func(i int) {
 		gen := rand.New(rand.NewSource(rand.Int63()))
 		return func(i int) {
@@ -219,12 +219,12 @@ func ActiveLearning(
 				target := solid.Contains(sample)
 				if tree.Predict(sample) != target {
 					activeSamples[i] = sample
-					activeLabels[i] = target
+					newLabels[i] = target
 					return
 				}
 			}
 		}
 	})
 
-	return append(coords, activeSamples...), append(labels, activeLabels...)
+	return append(coords, activeSamples...), append(labels, newLabels...)
 }
