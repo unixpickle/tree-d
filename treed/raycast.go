@@ -1,6 +1,73 @@
 package treed
 
-import "math"
+import (
+	"math"
+	"sync"
+
+	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model3d"
+)
+
+// A Collider implements model3d.Collider for a wrapped boolean tree.
+type Collider struct {
+	tree *BoundedSolidTree
+
+	lock          sync.RWMutex
+	truePolytopes []model3d.Collider
+}
+
+func (c *Collider) Min() model3d.Coord3D {
+	return c.tree.Min
+}
+
+func (c *Collider) Max() model3d.Coord3D {
+	return c.tree.Max
+}
+
+func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
+	c.lock.RLock()
+	polytopes := c.truePolytopes
+	c.lock.RUnlock()
+	if polytopes == nil {
+		c.lock.Lock()
+		if c.truePolytopes == nil {
+			boundsPoly := model3d.NewConvexPolytopeRect(c.Min(), c.Max())
+			polytopes := c.computePolytopes(c.tree.Tree, boundsPoly)
+			c.truePolytopes = make([]model3d.Collider, len(polytopes))
+			essentials.ConcurrentMap(0, len(polytopes), func(i int) {
+				c.truePolytopes[i] = model3d.MeshToCollider(polytopes[i].Mesh())
+			})
+		}
+		polytopes = c.truePolytopes
+		c.lock.Unlock()
+	}
+	for _, polytope := range polytopes {
+		if polytope.SphereCollision(center, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Collider) computePolytopes(
+	tree *SolidTree,
+	polytope model3d.ConvexPolytope,
+) []model3d.ConvexPolytope {
+	if tree.IsLeaf() {
+		if tree.Leaf == true {
+			return []model3d.ConvexPolytope{append(model3d.ConvexPolytope{}, polytope...)}
+		} else {
+			return []model3d.ConvexPolytope{}
+		}
+	}
+	subPoly := append(
+		polytope,
+		&model3d.LinearConstraint{Normal: tree.Axis, Max: tree.Threshold},
+	)
+	results := c.computePolytopes(tree.LessThan, subPoly)
+	subPoly[len(subPoly)-1] = &model3d.LinearConstraint{Normal: tree.Axis.Scale(-1), Max: -tree.Threshold}
+	return append(results, c.computePolytopes(tree.GreaterEqual, subPoly)...)
+}
 
 // RayChangePoints iterates the points where the ray causes a change in the
 // tree decision path.
