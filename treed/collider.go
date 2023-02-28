@@ -24,6 +24,76 @@ func (c *Collider) Max() model3d.Coord3D {
 	return c.tree.Max
 }
 
+func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (count int) {
+	bounds := model3d.BoundsRect(c)
+	var i int
+	var rcs [2]model3d.RayCollision
+	bounds.RayCollisions(r, func(rc model3d.RayCollision) {
+		rcs[i] = rc
+		i++
+	})
+
+	if i == 0 {
+		return 0
+	}
+
+	var entry, exit model3d.RayCollision
+
+	curPoint := r.Origin
+	if i == 1 {
+		exit = rcs[0]
+	} else {
+		entry, exit = rcs[0], rcs[1]
+		curPoint = r.Origin.Add(r.Direction.Scale(entry.Scale))
+	}
+	prevValue := c.tree.Tree.Predict(curPoint)
+
+	if i == 2 {
+		if prevValue {
+			count++
+			if f != nil {
+				f(entry)
+			}
+		}
+	}
+
+	terminated := false
+	c.tree.Tree.RayChangePoints(curPoint, r.Direction, func(t float64, p, n model3d.Coord3D) bool {
+		if t >= exit.Scale {
+			terminated = true
+			if prevValue {
+				count++
+				if f != nil {
+					f(exit)
+				}
+			}
+			return false
+		} else {
+			newValue := c.tree.Tree.Predict(p)
+			if newValue != prevValue {
+				prevValue = newValue
+				count++
+				if f != nil {
+					f(model3d.RayCollision{
+						Scale:  t,
+						Normal: n,
+					})
+				}
+			}
+		}
+		return true
+	})
+
+	if !terminated && prevValue {
+		count++
+		if f != nil {
+			f(exit)
+		}
+	}
+
+	return count
+}
+
 func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
 	c.lock.RLock()
 	polytopes := c.truePolytopes
@@ -72,17 +142,17 @@ func (c *Collider) computePolytopes(
 // RayChangePoints iterates the points where the ray causes a change in the
 // tree decision path.
 //
-// For each ray collision, the point of the change is passed to f, as well as
-// the normal axis which caused the change.
+// For each ray collision, the point of the change and associated scale for the
+// direction is passed to f, as well as the normal axis of the surface.
 //
 // If f returns false, iteration is terminated early.
-func (t *Tree[F, C, T]) RayChangePoints(origin, direction C, f func(C, C) bool) {
+func (t *Tree[F, C, T]) RayChangePoints(origin, direction C, f func(F, C, C) bool) {
 	for {
 		point, normal, changeT := t.nextBranchChange(origin, direction)
 		if math.IsInf(float64(changeT), 0) {
 			return
 		}
-		if !f(point, normal) {
+		if !f(changeT, point, normal) {
 			return
 		}
 		origin = point
