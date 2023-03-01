@@ -12,3 +12,11 @@ type BoundedTree[F constraints.Float, C Coord[F, C], T any] struct {
 	Max  C
 	Tree *Tree[F, C, T]
 }
+
+func TreeSolid(b *BoundedSolidTree) model3d.Solid {
+	return model3d.CheckedFuncSolid(
+		b.Min,
+		b.Max,
+		b.Tree.Predict,
+	)
+}
