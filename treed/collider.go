@@ -94,6 +94,16 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 	return count
 }
 
+func (c *Collider) FirstRayCollision(r *model3d.Ray) (collision model3d.RayCollision, collides bool) {
+	c.RayCollisions(r, func(rc model3d.RayCollision) {
+		if !collides {
+			collides = true
+			collision = rc
+		}
+	})
+	return
+}
+
 func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
 	c.lock.RLock()
 	polytopes := c.truePolytopes
