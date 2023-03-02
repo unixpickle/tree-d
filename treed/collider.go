@@ -16,6 +16,10 @@ type Collider struct {
 	truePolytopes []model3d.Collider
 }
 
+func NewCollider(b *BoundedSolidTree) *Collider {
+	return &Collider{tree: b}
+}
+
 func (c *Collider) Min() model3d.Coord3D {
 	return c.tree.Min
 }
