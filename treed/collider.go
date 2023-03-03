@@ -64,6 +64,7 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 	terminated := false
 	c.tree.Tree.RayChangePoints(curPoint, r.Direction, func(t float64, p, n model3d.Coord3D) bool {
 		if t >= exit.Scale {
+			// Early termination due to exiting the bounds.
 			terminated = true
 			if prevValue {
 				count++
@@ -72,17 +73,17 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 				}
 			}
 			return false
-		} else {
-			newValue := c.tree.Tree.Predict(p)
-			if newValue != prevValue {
-				prevValue = newValue
-				count++
-				if f != nil {
-					f(model3d.RayCollision{
-						Scale:  t,
-						Normal: n,
-					})
-				}
+		}
+
+		newValue := c.tree.Tree.Predict(p)
+		if newValue != prevValue {
+			prevValue = newValue
+			count++
+			if f != nil {
+				f(model3d.RayCollision{
+					Scale:  t,
+					Normal: n,
+				})
 			}
 		}
 		return true
