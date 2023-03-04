@@ -209,11 +209,22 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 
 func (t *Tree[F, C, T]) pointOfChange(origin, direction C, approxT F) C {
 	orig := t.Axis.Dot(origin) < t.Threshold
-	for {
-		x := origin.Add(direction.Scale(approxT))
-		if t.Axis.Dot(x) < t.Threshold != orig {
-			return x
-		}
-		approxT *= 1.0000001
+	x := origin.Add(direction.Scale(approxT))
+	if t.Axis.Dot(x) < t.Threshold != orig {
+		return x
 	}
+	minT := approxT
+	maxT := approxT * 2.0
+	if t.Axis.Dot(origin.Add(direction.Scale(maxT))) < t.Threshold == orig {
+		panic("impossible situation encountered: collision was expected")
+	}
+	for i := 0; i < 32; i++ {
+		midT := (minT + maxT) / 2
+		if t.Axis.Dot(origin.Add(direction.Scale(midT))) < t.Threshold != orig {
+			maxT = midT
+		} else {
+			minT = midT
+		}
+	}
+	return origin.Add(direction.Scale(maxT))
 }
