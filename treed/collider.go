@@ -80,6 +80,9 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 			prevValue = newValue
 			count++
 			if f != nil {
+				if !newValue {
+					n = n.Scale(-1)
+				}
 				f(model3d.RayCollision{
 					Scale:  t,
 					Normal: n,
@@ -167,7 +170,7 @@ func (t *Tree[F, C, T]) RayChangePoints(origin, direction C, f func(F, C, C) boo
 		if math.IsInf(float64(changeT), 0) {
 			return
 		}
-		if !f(changeT, point, normal) {
+		if !f(changeT, point, normal.Scale(1/normal.Norm())) {
 			return
 		}
 		origin = point
@@ -195,7 +198,11 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 		if thisT > childT {
 			return childPoint, childNormal, childT
 		} else {
-			return t.pointOfChange(origin, direction, thisT), t.Axis, thisT
+			normal := t.Axis
+			if child == t.LessThan {
+				normal = normal.Scale(-1)
+			}
+			return t.pointOfChange(origin, direction, thisT), normal, thisT
 		}
 	}
 }
