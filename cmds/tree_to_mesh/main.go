@@ -18,7 +18,7 @@ func main() {
 
 	args := flag.Args()
 	if len(args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: tree_to_mesh [flags] <input.json> <output.stl>")
+		fmt.Fprintln(os.Stderr, "Usage: tree_to_mesh [flags] <input.bin> <output.stl>")
 		fmt.Fprintln(os.Stderr)
 		flag.PrintDefaults()
 		os.Exit(1)
