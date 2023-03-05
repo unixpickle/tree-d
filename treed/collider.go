@@ -182,9 +182,18 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 		var zero C
 		return zero, zero, F(math.Inf(1))
 	}
-	curDot := t.Axis.Dot(origin)
 	dirDot := t.Axis.Dot(direction)
 
+	absDirDot := dirDot
+	if absDirDot < 0 {
+		absDirDot = -absDirDot
+	}
+	if absDirDot < t.Axis.Norm()*direction.Norm()*1e-8 {
+		var zero C
+		return zero, zero, F(math.Inf(1))
+	}
+
+	curDot := t.Axis.Dot(origin)
 	child := t.LessThan
 	if curDot >= t.Threshold {
 		child = t.GreaterEqual
