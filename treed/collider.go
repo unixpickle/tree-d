@@ -119,11 +119,11 @@ func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
 	if polytopes == nil {
 		c.lock.Lock()
 		if c.truePolytopes == nil {
-			boundsPoly := model3d.NewConvexPolytopeRect(c.Min(), c.Max())
-			polytopes := c.computePolytopes(c.tree.Tree, boundsPoly)
+			polytopes := TreePolytopes(c.tree)
 			c.truePolytopes = make([]model3d.Collider, len(polytopes))
 			essentials.ConcurrentMap(0, len(polytopes), func(i int) {
-				c.truePolytopes[i] = model3d.MeshToCollider(polytopes[i].Mesh())
+				m := polytopes[i].Mesh()
+				c.truePolytopes[i] = model3d.MeshToCollider(m)
 			})
 		}
 		polytopes = c.truePolytopes
