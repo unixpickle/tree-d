@@ -202,7 +202,24 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 		child = t.GreaterEqual
 	}
 
+	normal = t.Axis
+	if child == t.LessThan {
+		normal = normal.Scale(-1)
+	}
+
 	thisT := (t.Threshold - curDot) / dirDot
+
+	// This edge case might seem extremely unusual, but it actually occurs
+	// naturally for trees with tight bounding boxes.
+	if t.Threshold == curDot {
+		maxT := F(1e8)
+		maxDot := t.Axis.Dot(origin.Add(direction.Scale(maxT)))
+		if (curDot >= t.Threshold) != (maxDot >= t.Threshold) {
+			changeT := t.changeT(origin, direction, thisT, maxT)
+			return origin.Add(direction.Scale(changeT)), normal, changeT
+		}
+	}
+
 	if thisT <= 0 {
 		return child.nextBranchChange(origin, direction)
 	} else {
@@ -210,23 +227,18 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 		if thisT > childT {
 			return childPoint, childNormal, childT
 		} else {
-			normal := t.Axis
-			if child == t.LessThan {
-				normal = normal.Scale(-1)
-			}
-			return t.pointOfChange(origin, direction, thisT), normal, thisT
+			changeT := t.changeT(origin, direction, thisT, thisT*2)
+			return origin.Add(direction.Scale(changeT)), normal, changeT
 		}
 	}
 }
 
-func (t *Tree[F, C, T]) pointOfChange(origin, direction C, approxT F) C {
+func (t *Tree[F, C, T]) changeT(origin, direction C, minT, maxT F) F {
 	orig := t.Axis.Dot(origin) < t.Threshold
-	x := origin.Add(direction.Scale(approxT))
+	x := origin.Add(direction.Scale(minT))
 	if t.Axis.Dot(x) < t.Threshold != orig {
-		return x
+		return minT
 	}
-	minT := approxT
-	maxT := approxT * 2.0
 	if t.Axis.Dot(origin.Add(direction.Scale(maxT))) < t.Threshold == orig {
 		panic("impossible situation encountered: collision was expected")
 	}
@@ -238,5 +250,5 @@ func (t *Tree[F, C, T]) pointOfChange(origin, direction C, approxT F) C {
 			minT = midT
 		}
 	}
-	return origin.Add(direction.Scale(maxT))
+	return maxT
 }
