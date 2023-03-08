@@ -238,13 +238,16 @@ func ActiveLearning(
 	min, max := PaddedBounds(solid)
 	epsilon := min.Dist(max) * activeEpsilon
 
-	activeSamples := treed.SampleDecisionBoundary(
-		tree,
-		activePoints/2,
-		activeGridSize,
-		min,
-		max,
-	)
+	boundedTree := &treed.BoundedSolidTree{Tree: tree, Min: min, Max: max}
+	activeSamples := treed.SampleDecisionBoundaryCast(boundedTree, activePoints/2, activePoints*128)
+	if len(activeSamples) < activePoints/2 {
+		extra := treed.SampleDecisionBoundaryMesh(
+			boundedTree,
+			activePoints/2-len(activeSamples),
+			activeGridSize,
+		)
+		activeSamples = append(activeSamples, extra...)
+	}
 
 	// Sample some points slightly outside the decision boundary
 	// to allow faster growth/shrinking.
