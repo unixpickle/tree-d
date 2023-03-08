@@ -34,13 +34,19 @@ type SplitLoss[F comparable, T any] interface {
 
 // EntropySplitLoss is a SplitLoss which computes the total entropy across both
 // branches.
-type EntropySplitLoss[F comparable] struct{}
+type EntropySplitLoss[F comparable] struct {
+	// MinCount can be used to prevent splits which result in leaves with only
+	// a small number of representative samples. In particular, splits with
+	// less than MinCount samples on the left or right will not be returned
+	// from MinimumSplit().
+	MinCount int
+}
 
-func (_ EntropySplitLoss[F]) Predict(items List[bool]) bool {
+func (e EntropySplitLoss[F]) Predict(items List[bool]) bool {
 	return countTrue(items)*2 > items.Len
 }
 
-func (_ EntropySplitLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) SplitInfo {
+func (e EntropySplitLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) SplitInfo {
 	if sorted.Len != thresholds.Len {
 		panic("values and thresholds must have same length")
 	}
@@ -64,7 +70,8 @@ func (_ EntropySplitLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F])
 			Index: i,
 			Loss:  entropy(leftCount, leftSum) + entropy(rightCount, rightSum),
 		}
-		if i == 0 || split.Loss < bestSplit.Loss {
+		if (split.Loss < bestSplit.Loss && leftCount >= e.MinCount && rightCount >= e.MinCount) ||
+			i == 0 {
 			bestSplit = split
 		}
 	})

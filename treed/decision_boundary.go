@@ -66,6 +66,7 @@ func SampleDecisionBoundaryCast(
 		}()
 	}
 	wg.Wait()
+	close(resChan)
 
 	res := make([]model3d.Coord3D, 0, numPoints)
 	for x := range resChan {

@@ -19,6 +19,7 @@ func main() {
 	var iters int
 	var taoIters int
 	var depth int
+	var minLeafSize int
 	var datasetSize int
 	var taoDatasetSize int
 	var surfaceSamples int
@@ -35,6 +36,7 @@ func main() {
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
 	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
+	flag.IntVar(&minLeafSize, "min-leaf-size", 5, "minimum samples per leaf for greedy trees")
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
 	flag.IntVar(&surfaceSamples, "surface-samples", 0,
 		"number of points to sample near the surface for the dataset")
@@ -73,11 +75,12 @@ func main() {
 
 	log.Println("Building initial tree...")
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
+	greedyLoss := treed.EntropySplitLoss[float64]{MinCount: minLeafSize}
 	tree := treed.GreedyTree[float64, model3d.Coord3D, bool](
 		axes,
 		coords,
 		labels,
-		treed.EntropySplitLoss[float64]{},
+		greedyLoss,
 		0,
 		depth,
 	)
@@ -98,7 +101,7 @@ func main() {
 			axes,
 			coords,
 			labels,
-			treed.EntropySplitLoss[float64]{},
+			greedyLoss,
 			0,
 			depth,
 		)
