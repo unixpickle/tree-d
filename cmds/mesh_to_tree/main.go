@@ -69,12 +69,7 @@ func main() {
 	inputMesh := model3d.NewMeshTriangles(inputTris)
 	coll := model3d.MeshToCollider(inputMesh)
 	solid := model3d.NewColliderSolid(coll)
-	coords, labels := SolidDataset(solid, datasetSize-surfaceSamples)
-	if surfaceSamples > 0 {
-		meshCoords, meshLabels := MeshDataset(inputMesh, solid, datasetSize/2, surfaceEpsilon)
-		coords = append(coords, meshCoords...)
-		labels = append(labels, meshLabels...)
-	}
+	coords, labels := Dataset(inputMesh, solid, datasetSize, surfaceSamples, surfaceEpsilon)
 
 	log.Println("Building initial tree...")
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
@@ -111,7 +106,9 @@ func main() {
 
 	log.Println("Sampling TAO dataset...")
 	if len(coords) < taoDatasetSize {
-		newCoords, newLabels := SolidDataset(solid, taoDatasetSize-len(coords))
+		newCoords, newLabels := Dataset(
+			inputMesh, solid, datasetSize, surfaceSamples, surfaceEpsilon,
+		)
 		coords = append(coords, newCoords...)
 		labels = append(labels, newLabels...)
 	}
@@ -176,6 +173,22 @@ func WriteTree(outputPath string, solid model3d.Solid, tree *treed.SolidTree) er
 		Max:  solid.Max(),
 		Tree: tree,
 	})
+}
+
+func Dataset(
+	mesh *model3d.Mesh,
+	solid model3d.Solid,
+	datasetSize int,
+	surfaceSamples int,
+	eps float64,
+) ([]model3d.Coord3D, []bool) {
+	coords, labels := SolidDataset(solid, datasetSize-surfaceSamples)
+	if surfaceSamples > 0 {
+		meshCoords, meshLabels := MeshDataset(mesh, solid, surfaceSamples, eps)
+		coords = append(coords, meshCoords...)
+		labels = append(labels, meshLabels...)
+	}
+	return coords, labels
 }
 
 func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D, labels []bool) {
