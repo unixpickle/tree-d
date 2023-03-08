@@ -97,6 +97,7 @@ func main() {
 			activePoints,
 			activeGridSize,
 			activeEpsilon,
+			verbose,
 		)
 		tree = treed.GreedyTree[float64, model3d.Coord3D, bool](
 			axes,
@@ -136,6 +137,7 @@ func main() {
 			activePoints,
 			activeGridSize,
 			activeEpsilon,
+			verbose,
 		)
 
 		result := tao.Optimize(tree, coords, labels)
@@ -229,12 +231,15 @@ func ActiveLearning(
 	activePoints int,
 	activeGridSize int,
 	activeEpsilon float64,
+	verbose bool,
 ) ([]model3d.Coord3D, []bool) {
 	if activePoints == 0 {
 		return coords, labels
 	}
 
-	log.Printf("Creating %d active learning samples...", activePoints)
+	if verbose {
+		log.Printf("Creating %d active learning samples...", activePoints)
+	}
 	min, max := PaddedBounds(solid)
 	epsilon := min.Dist(max) * activeEpsilon
 
@@ -280,7 +285,9 @@ func ActiveLearning(
 			numCorrect++
 		}
 	}
-	log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
+	if verbose {
+		log.Printf("=> active accuracy is %f", float64(numCorrect)/float64(activePoints))
+	}
 
 	return coords, labels
 }
