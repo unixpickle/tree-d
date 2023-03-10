@@ -2,6 +2,8 @@ package treed
 
 import (
 	"math"
+
+	"golang.org/x/exp/constraints"
 )
 
 // SplitInfo is returned by Loss.MinimumSplit() to indicate where to split a
@@ -105,6 +107,87 @@ func logOrZero(x float64) float64 {
 		return 0
 	}
 	return math.Log(x)
+}
+
+// VarianceSplitLoss is a SplitLoss which computes the per-coordinate variance
+// for each side of the split.
+type VarianceSplitLoss[F constraints.Float, C Coord[F, C]] struct {
+	// MinCount can be used to prevent splits which result in leaves with only
+	// a small number of representative samples. In particular, splits with
+	// less than MinCount samples on the left or right will not be returned
+	// from MinimumSplit().
+	MinCount int
+}
+
+func (v VarianceSplitLoss[F, C]) Predict(items List[C]) C {
+	var sum C
+	for i := 0; i < items.Len; i++ {
+		sum = sum.Add(items.Get(i))
+	}
+	return sum.Scale(1.0 / F(items.Len))
+}
+
+func (v VarianceSplitLoss[F, C]) MinimumSplit(sorted List[C], thresholds List[F]) SplitInfo {
+	if sorted.Len != thresholds.Len {
+		panic("values and thresholds must have same length")
+	}
+
+	var leftSum, total rollingVariance[F, C]
+	total.AddAll(sorted)
+
+	lastIndex := 0
+	var bestSplit SplitInfo
+	iterateSplitPoints(thresholds, func(i int) {
+		for lastIndex < i {
+			leftSum.Add(sorted.Get(lastIndex))
+			lastIndex++
+		}
+		var rightSum rollingVariance[F, C]
+		rightSum.Diff(&total, &leftSum)
+		leftCount := i
+		rightCount := sorted.Len - i
+		split := SplitInfo{
+			Index: i,
+			Loss:  float64(leftSum.TotalVariance()) + float64(rightSum.TotalVariance()),
+		}
+		if (split.Loss < bestSplit.Loss && leftCount >= v.MinCount && rightCount >= v.MinCount) ||
+			i == 0 {
+			bestSplit = split
+		}
+	})
+
+	return bestSplit
+}
+
+type rollingVariance[F constraints.Float, C Coord[F, C]] struct {
+	Sum   C
+	SqSum C
+	Count int
+}
+
+func (r *rollingVariance[F, C]) TotalVariance() F {
+	mean := r.Sum.Scale(1 / F(r.Count))
+	sqMean := r.SqSum.Scale(1 / F(r.Count))
+	return F(r.Count) * sqMean.Sub(mean.Mul(mean)).Sum()
+}
+
+func (r *rollingVariance[F, C]) AddAll(cs List[C]) {
+	for i := 0; i < cs.Len; i++ {
+		c := cs.Get(i)
+		r.Add(c)
+	}
+}
+
+func (r *rollingVariance[F, C]) Add(c C) {
+	r.Sum = r.Sum.Add(c)
+	r.SqSum = r.SqSum.Add(c.Mul(c))
+	r.Count++
+}
+
+func (r *rollingVariance[F, C]) Diff(a, b *rollingVariance[F, C]) {
+	r.Sum = a.Sum.Sub(b.Sum)
+	r.SqSum = a.SqSum.Sub(b.SqSum)
+	r.Count = a.Count - b.Count
 }
 
 func iterateSplitPoints[F comparable](thresholds List[F], f func(int)) {

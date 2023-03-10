@@ -4,9 +4,11 @@ import "golang.org/x/exp/constraints"
 
 type Coord[F constraints.Float, Self any] interface {
 	Norm() F
+	Sum() F
 	Dot(Self) F
 	Add(Self) Self
 	Sub(Self) Self
+	Mul(Self) Self
 	Scale(F) Self
 }
 
