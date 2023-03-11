@@ -55,14 +55,25 @@ func WriteSolidTree(w io.Writer, t *SolidTree) error {
 }
 
 func writeSolidTree(w io.Writer, t *SolidTree) error {
-	if t.IsLeaf() {
-		var leaf float32
-		if t.Leaf {
-			leaf = 1
+	return writeCoordBranchTree(w, t, func(w io.Writer, leaf bool) error {
+		var x float32
+		if leaf {
+			x = 1
 		}
-		return binary.Write(w, binary.LittleEndian, []float32{
-			0, 0, 0, leaf,
-		})
+		return binary.Write(w, binary.LittleEndian, x)
+	})
+}
+
+func writeCoordBranchTree[T any](
+	w io.Writer,
+	t *Tree[float64, model3d.Coord3D, T],
+	f func(io.Writer, T) error,
+) error {
+	if t.IsLeaf() {
+		if err := binary.Write(w, binary.LittleEndian, []float32{0, 0, 0}); err != nil {
+			return err
+		}
+		return f(w, t.Leaf)
 	} else {
 		if t.Axis == model3d.Origin {
 			panic("cannot encode zero axis for branch")
@@ -76,10 +87,10 @@ func writeSolidTree(w io.Writer, t *SolidTree) error {
 		if err != nil {
 			return err
 		}
-		if err := writeSolidTree(w, t.LessThan); err != nil {
+		if err := writeCoordBranchTree(w, t.LessThan, f); err != nil {
 			return err
 		}
-		return writeSolidTree(w, t.GreaterEqual)
+		return writeCoordBranchTree(w, t.GreaterEqual, f)
 	}
 }
 
@@ -93,26 +104,49 @@ func ReadSolidTree(r io.Reader) (*SolidTree, error) {
 }
 
 func readSolidTree(r io.Reader) (*SolidTree, error) {
-	var values [4]float32
+	return readCoordBranchTree(r, func(r io.Reader) (bool, error) {
+		var x float32
+		if err := binary.Read(r, binary.LittleEndian, &x); err != nil {
+			return false, err
+		}
+		return x != 0, nil
+	})
+}
+
+func readCoordBranchTree[T any](
+	r io.Reader,
+	f func(io.Reader) (T, error),
+) (*Tree[float64, model3d.Coord3D, T], error) {
+	var values [3]float32
 	if err := binary.Read(r, binary.LittleEndian, &values); err != nil {
 		return nil, err
 	}
 	if values[0] == 0 && values[1] == 0 && values[2] == 0 {
-		return &SolidTree{
-			Leaf: values[3] != 0,
+		leaf, err := f(r)
+		if err != nil {
+			return nil, err
+		}
+		return &Tree[float64, model3d.Coord3D, T]{
+			Leaf: leaf,
 		}, nil
 	}
-	left, err := readSolidTree(r)
+	var threshold float32
+	if err := binary.Read(r, binary.LittleEndian, &threshold); err != nil {
+		return nil, err
+	}
+
+	left, err := readCoordBranchTree(r, f)
 	if err != nil {
 		return nil, err
 	}
-	right, err := readSolidTree(r)
+	right, err := readCoordBranchTree(r, f)
 	if err != nil {
 		return nil, err
 	}
-	return &SolidTree{
+
+	return &Tree[float64, model3d.Coord3D, T]{
 		Axis:         model3d.XYZ(float64(values[0]), float64(values[1]), float64(values[2])),
-		Threshold:    float64(values[3]),
+		Threshold:    float64(threshold),
 		LessThan:     left,
 		GreaterEqual: right,
 	}, nil

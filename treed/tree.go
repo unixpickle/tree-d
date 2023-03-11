@@ -9,6 +9,7 @@ import (
 )
 
 type SolidTree = Tree[float64, model3d.Coord3D, bool]
+type CoordTree = Tree[float64, model3d.Coord3D, model3d.Coord3D]
 
 type Tree[F constraints.Float, C Coord[F, C], T any] struct {
 	Axis         C
