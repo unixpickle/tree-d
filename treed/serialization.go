@@ -64,6 +64,21 @@ func writeSolidTree(w io.Writer, t *SolidTree) error {
 	})
 }
 
+// WriteCoordTree serialize t in a 32-bit precision binary format.
+func WriteCoordTree(w io.Writer, t *CoordTree) error {
+	err := writeCoordBranchTree(w, t, func(w io.Writer, leaf model3d.Coord3D) error {
+		return binary.Write(w, binary.LittleEndian, []float32{
+			float32(leaf.X),
+			float32(leaf.Y),
+			float32(leaf.Z),
+		})
+	})
+	if err != nil {
+		err = errors.Wrap(err, "write coord tree")
+	}
+	return err
+}
+
 func writeCoordBranchTree[T any](
 	w io.Writer,
 	t *Tree[float64, model3d.Coord3D, T],
@@ -111,6 +126,20 @@ func readSolidTree(r io.Reader) (*SolidTree, error) {
 		}
 		return x != 0, nil
 	})
+}
+
+func ReadCoordTree(r io.Reader) (*CoordTree, error) {
+	res, err := readCoordBranchTree(r, func(r io.Reader) (model3d.Coord3D, error) {
+		var x [3]float32
+		if err := binary.Read(r, binary.LittleEndian, &x); err != nil {
+			return model3d.Coord3D{}, err
+		}
+		return model3d.XYZ(float64(x[0]), float64(x[1]), float64(x[2])), nil
+	})
+	if err != nil {
+		return nil, errors.Wrap(err, "read coord tree")
+	}
+	return res, nil
 }
 
 func readCoordBranchTree[T any](
