@@ -67,9 +67,9 @@ func main() {
 		depth,
 	)
 
-	// TODO: write tree.
-
-	_ = tree
-	_ = outputPath
-	// TODO: delete above line
+	f, err = os.Create(outputPath)
+	essentials.Must(err)
+	err = treed.WriteCoordTree(f, tree)
+	f.Close()
+	essentials.Must(err)
 }
