@@ -58,3 +58,20 @@ func (_ EqualityTAOLoss[T]) Loss(label, prediction T) float64 {
 		return 1
 	}
 }
+
+// SquaredErrorTAOLoss computes the squared error between the prediction and
+// the target, summed across dimensions.
+type SquaredErrorTAOLoss[F float64, C Coord[F, C]] struct{}
+
+func (_ SquaredErrorTAOLoss[F, C]) Predict(items List[C]) C {
+	var sum C
+	for i := 0; i < items.Len; i++ {
+		sum = sum.Add(items.Get(i))
+	}
+	return sum.Scale(1 / F(items.Len))
+}
+
+func (_ SquaredErrorTAOLoss[F, C]) Loss(label, prediction C) float64 {
+	diff := label.Sub(prediction)
+	return float64(diff.Dot(diff))
+}
