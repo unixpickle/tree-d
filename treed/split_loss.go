@@ -166,6 +166,9 @@ type rollingVariance[F constraints.Float, C Coord[F, C]] struct {
 }
 
 func (r *rollingVariance[F, C]) TotalVariance() F {
+	if r.Count == 0 {
+		return 0
+	}
 	mean := r.Sum.Scale(1 / F(r.Count))
 	sqMean := r.SqSum.Scale(1 / F(r.Count))
 	return F(r.Count) * sqMean.Sub(mean.Mul(mean)).Sum()
