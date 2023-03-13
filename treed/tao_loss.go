@@ -1,5 +1,7 @@
 package treed
 
+import "golang.org/x/exp/constraints"
+
 // A TAOLoss is a loss function which can be computed between a label and a
 // leaf prediction, both of the same type.
 type TAOLoss[T any] interface {
@@ -61,7 +63,7 @@ func (_ EqualityTAOLoss[T]) Loss(label, prediction T) float64 {
 
 // SquaredErrorTAOLoss computes the squared error between the prediction and
 // the target, summed across dimensions.
-type SquaredErrorTAOLoss[F float64, C Coord[F, C]] struct{}
+type SquaredErrorTAOLoss[F constraints.Float, C Coord[F, C]] struct{}
 
 func (_ SquaredErrorTAOLoss[F, C]) Predict(items List[C]) C {
 	var sum C
