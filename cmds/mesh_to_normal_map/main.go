@@ -111,6 +111,12 @@ func main() {
 		tree = result.Tree
 	}
 
+	log.Println("Simplifying tree...")
+	oldCount := tree.NumLeaves()
+	tree = tree.Simplify(inputs, targets, tao.Loss)
+	newCount := tree.NumLeaves()
+	log.Printf(" => went from %d to %d leaves", oldCount, newCount)
+
 	log.Println("Writing output...")
 	essentials.Must(WriteTree(outputPath, tree))
 }
