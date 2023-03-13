@@ -36,7 +36,7 @@ func main() {
 	flag.Parse()
 
 	args := flag.Args()
-	if len(args) != 2 {
+	if len(args) != 3 {
 		fmt.Fprintln(os.Stderr, "Usage: mesh_to_normal_map [flags] <tree.bin> <mesh.stl> <output.bin>")
 		fmt.Fprintln(os.Stderr)
 		flag.PrintDefaults()
