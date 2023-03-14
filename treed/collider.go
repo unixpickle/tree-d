@@ -8,6 +8,43 @@ import (
 	"github.com/unixpickle/model3d/model3d"
 )
 
+// A NormalMap is a function that maps 3D spatial coordinates to normal
+// vectors.
+type NormalMap interface {
+	Predict(c model3d.Coord3D) model3d.Coord3D
+}
+
+type normalMapCollider struct {
+	model3d.Collider
+	mapping NormalMap
+}
+
+// MapNormals wraps a collider c and replaces collision normals using results
+// from a NormalMap.
+func MapNormals(c model3d.Collider, mapping NormalMap) model3d.Collider {
+	return &normalMapCollider{
+		Collider: c,
+		mapping:  mapping,
+	}
+}
+
+func (n *normalMapCollider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (count int) {
+	return n.Collider.RayCollisions(r, func(rc model3d.RayCollision) {
+		if f != nil {
+			rc.Normal = n.mapping.Predict(r.Origin.Add(r.Direction.Scale(rc.Scale)))
+			f(rc)
+		}
+	})
+}
+
+func (n *normalMapCollider) FirstRayCollision(r *model3d.Ray) (collision model3d.RayCollision, collides bool) {
+	collision, collides = n.Collider.FirstRayCollision(r)
+	if collides {
+		collision.Normal = n.mapping.Predict(r.Origin.Add(r.Direction.Scale(collision.Scale)))
+	}
+	return
+}
+
 // A Collider implements model3d.Collider for a wrapped boolean tree.
 type Collider struct {
 	tree *BoundedSolidTree
