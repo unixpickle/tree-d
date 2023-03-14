@@ -20,6 +20,22 @@ type Tree[F constraints.Float, C Coord[F, C], T any] struct {
 	Leaf T
 }
 
+// MapLeaves applies a function f to all the leaves of the tree.
+func MapLeaves[F constraints.Float, C Coord[F, C], T1, T2 any](t *Tree[F, C, T1], f func(T1) T2) *Tree[F, C, T2] {
+	if t.IsLeaf() {
+		return &Tree[F, C, T2]{
+			Leaf: f(t.Leaf),
+		}
+	} else {
+		return &Tree[F, C, T2]{
+			Axis:         t.Axis,
+			Threshold:    t.Threshold,
+			LessThan:     MapLeaves(t.LessThan, f),
+			GreaterEqual: MapLeaves(t.GreaterEqual, f),
+		}
+	}
+}
+
 func (t *Tree[F, C, T]) IsLeaf() bool {
 	return t.LessThan == nil
 }

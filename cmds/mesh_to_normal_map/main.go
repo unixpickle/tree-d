@@ -111,6 +111,17 @@ func main() {
 		tree = result.Tree
 	}
 
+	tree = treed.MapLeaves(tree, func(c model3d.Coord3D) model3d.Coord3D {
+		norm := c.Norm()
+		if norm != 0 {
+			return c.Scale(1 / norm)
+		} else {
+			// Arbitrary normal for null leaf.
+			log.Println("Warning: produced leaf with zero norm.")
+			return model3d.XYZ(1, 0, 0)
+		}
+	})
+
 	log.Println("Simplifying tree...")
 	oldCount := tree.NumLeaves()
 	tree = tree.Simplify(inputs, targets, tao.Loss)
