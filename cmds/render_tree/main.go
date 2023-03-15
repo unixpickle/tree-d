@@ -19,10 +19,12 @@ func main() {
 	var imageSize int
 	var fps float64
 	var frames int
+	var normalMapPath string
 	flag.IntVar(&gridSize, "grid-size", 3, "grid size (used for rows and columns)")
 	flag.IntVar(&imageSize, "image-size", 300, "size of each image in the grid")
 	flag.Float64Var(&fps, "fps", 10.0, "FPS for GIF outputs")
 	flag.IntVar(&frames, "frames", 20, "total number of frames for GIF outputs")
+	flag.StringVar(&normalMapPath, "normal-map", "", "path to optional normal map tree")
 	flag.Parse()
 
 	args := flag.Args()
@@ -42,7 +44,16 @@ func main() {
 	essentials.Must(err)
 
 	log.Println("Creating renderable object...")
-	collider := treed.NewCollider(tree)
+	var collider model3d.Collider = treed.NewCollider(tree)
+	if normalMapPath != "" {
+		log.Println(" - Loading normal map...")
+		f, err = os.Open(normalMapPath)
+		essentials.Must(err)
+		normalMapTree, err := treed.ReadCoordTree(f)
+		f.Close()
+		essentials.Must(err)
+		collider = treed.MapNormals(collider, normalMapTree)
+	}
 	object := render3d.Objectify(collider, nil)
 
 	log.Println("Rendering...")
