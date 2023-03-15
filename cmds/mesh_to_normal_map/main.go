@@ -62,12 +62,12 @@ func main() {
 	meshField := model3d.MeshToSDF(inputMesh)
 
 	log.Println("Sampling dataset...")
-	sampleDataset := func() (labels, targets []model3d.Coord3D) {
-		labels = treed.SampleDecisionBoundaryCast(solidTree, datasetSize, 0)
-		targets = make([]model3d.Coord3D, len(labels))
-		for i, x := range labels {
-			targets[i], _ = meshField.NormalSDF(x)
-		}
+	sampleDataset := func() (inputs, targets []model3d.Coord3D) {
+		inputs = treed.SampleDecisionBoundaryCast(solidTree, datasetSize, 0)
+		targets = make([]model3d.Coord3D, len(inputs))
+		essentials.ConcurrentMap(0, len(inputs), func(i int) {
+			targets[i], _ = meshField.NormalSDF(inputs[i])
+		})
 		return
 	}
 	inputs, targets := sampleDataset()
