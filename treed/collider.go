@@ -66,6 +66,20 @@ func (c *Collider) Max() model3d.Coord3D {
 }
 
 func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (count int) {
+	return c.rayCollisions(r, false, f)
+}
+
+func (c *Collider) FirstRayCollision(r *model3d.Ray) (collision model3d.RayCollision, collides bool) {
+	c.rayCollisions(r, true, func(rc model3d.RayCollision) {
+		if !collides {
+			collides = true
+			collision = rc
+		}
+	})
+	return
+}
+
+func (c *Collider) rayCollisions(r *model3d.Ray, firstOnly bool, f func(model3d.RayCollision)) (count int) {
 	bounds := model3d.BoundsRect(c)
 	var i int
 	var rcs [2]model3d.RayCollision
@@ -96,6 +110,9 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 			count++
 			if f != nil {
 				f(entry)
+			}
+			if firstOnly {
+				return 1
 			}
 		}
 	}
@@ -128,6 +145,9 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 					Normal: n,
 				})
 			}
+			if firstOnly {
+				return false
+			}
 		}
 		return true
 	})
@@ -140,16 +160,6 @@ func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (
 	}
 
 	return count
-}
-
-func (c *Collider) FirstRayCollision(r *model3d.Ray) (collision model3d.RayCollision, collides bool) {
-	c.RayCollisions(r, func(rc model3d.RayCollision) {
-		if !collides {
-			collides = true
-			collision = rc
-		}
-	})
-	return
 }
 
 func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
