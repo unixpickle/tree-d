@@ -7,8 +7,32 @@
             this.z = z;
         }
 
+        static axis(idx) {
+            if (idx === 0) {
+                return new Vector(1, 0, 0);
+            } else if (idx === 1) {
+                return new Vector(0, 1, 0);
+            } else if (idx === 2) {
+                return new Vector(0, 0, 1);
+            }
+            // Avoid exception for optimization.
+            return new Vector(0, 0, 0);
+        }
+
         dot(v1) {
             return this.x * v1.x + this.y * v1.y + this.z * v1.z;
+        }
+
+        getAxis(axis) {
+            if (axis === 0) {
+                return this.x;
+            } else if (axis === 1) {
+                return this.y;
+            } else if (axis === 2) {
+                return this.z;
+            }
+            // Avoid exception for optimization.
+            return 0;
         }
     }
 
@@ -19,6 +43,10 @@
             this.left = left;
             this.right = right;
             this.leaf = leaf;
+        }
+
+        static leaf(value) {
+            return new Tree(null, null, null, null, value);
         }
     }
 
@@ -53,6 +81,8 @@
             readFn = readBoolTree;
         } else if (treeType === 'coord') {
             readFn = readCoordTree;
+        } else if (treeType === 'bounded') {
+            readFn = readBoundedSolidTree;
         } else {
             throw Error('unsupported tree type: ' + treeType);
         }
@@ -66,6 +96,20 @@
 
     function readCoordTree(floatReader) {
         return readTree(floatReader, (f) => f.nextVector());
+    }
+
+    function readBoundedSolidTree(floatReader) {
+        const min = floatReader.nextVector();
+        const max = floatReader.nextVector();
+        let tree = readBoolTree(floatReader);
+
+        // Apply bounds as branches of the tree.
+        for (let axis = 0; axis < 3; ++axis) {
+            const ax = Vector.axis(axis);
+            tree = new Tree(ax, min.getAxis(axis), Tree.leaf(false), tree);
+            tree = new Tree(ax, max.getAxis(axis), tree, Tree.leaf(false));
+        }
+        return tree;
     }
 
     function readTree(floatReader, leafFn) {
