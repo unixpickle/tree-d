@@ -40,6 +40,19 @@
         }
     }
 
+    async function fetchTree(url, treeType) {
+        let readFn;
+        if (treeType === 'bool') {
+            readFn = readBoolTree;
+        } else if (treeType === 'coord') {
+            readFn = readCoordTree;
+        } else {
+            throw Error('unsupported tree type: ' + treeType);
+        }
+        const buf = await (await fetch(url)).arrayBuffer();
+        return readFn(new FloatReader(buf));
+    }
+
     function readBoolTree(floatReader) {
         return readTree(floatReader, (f) => f.next() !== 0);
     }
