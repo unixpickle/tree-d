@@ -40,6 +40,33 @@
         }
     }
 
+    function readBoolTree(floatReader) {
+        return readTree(floatReader, (f) => f.next() !== 0);
+    }
+
+    function readCoordTree(floatReader) {
+        return readTree(floatReader, (f) => {
+            const x = f.next();
+            const y = f.next();
+            const z = f.next();
+            return new Vector(x, y, z);
+        });
+    }
+
+    function readTree(floatReader, leafFn) {
+        const x = floatReader.next();
+        const y = floatReader.next();
+        const z = floatReader.next();
+        if (x === 0 && y === 0 && z === 0) {
+            const leaf = leafFn(floatReader);
+            return new Tree(null, null, null, null, leaf);
+        }
+        const threshold = floatReader.next();
+        const left = readTree(floatReader, leafFn);
+        const right = readTree(floatReader, leafFn);
+        return new Tree(new Vector(x, y, z), threshold, left, right, null);
+    }
+
     function flipToLittleEndian(input) {
         if (!isBigEndian()) {
             return input;
