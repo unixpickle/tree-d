@@ -38,6 +38,13 @@
             }
             return this.arr[this.offset++];
         }
+
+        nextVector() {
+            const x = this.next();
+            const y = this.next();
+            const z = this.next();
+            return new Vector(x, y, z);
+        }
     }
 
     async function fetchTree(url, treeType) {
@@ -58,19 +65,12 @@
     }
 
     function readCoordTree(floatReader) {
-        return readTree(floatReader, (f) => {
-            const x = f.next();
-            const y = f.next();
-            const z = f.next();
-            return new Vector(x, y, z);
-        });
+        return readTree(floatReader, (f) => f.nextVector());
     }
 
     function readTree(floatReader, leafFn) {
-        const x = floatReader.next();
-        const y = floatReader.next();
-        const z = floatReader.next();
-        if (x === 0 && y === 0 && z === 0) {
+        const axis = floatReader.nextVector();
+        if (axis.x === 0 && axis.y === 0 && axis.z === 0) {
             const leaf = leafFn(floatReader);
             return new Tree(null, null, null, null, leaf);
         }
