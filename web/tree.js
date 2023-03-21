@@ -69,6 +69,10 @@
             this.normal = normal;
             this.t = t;
         }
+
+        addT(t) {
+            return new ChangePoint(this.point, this.normal, this.t + t);
+        }
     }
 
     class Tree {
@@ -84,8 +88,36 @@
             return new Tree(null, null, null, null, value);
         }
 
+        predict(x) {
+            if (this.isLeaf()) {
+                return this.leaf;
+            }
+            if (this.axis.dot(x) < this.threshold) {
+                return this.left.predict(x);
+            } else {
+                return this.right.predict(x);
+            }
+        }
+
         isLeaf() {
             return this.axis !== null;
+        }
+
+        castRay(ray) {
+            const value = this.predict(ray.origin);
+            let prevT = 0;
+            while (true) {
+                const change = this.nextChange(ray);
+                if (change === null) {
+                    return null;
+                }
+                const newValue = this.predict(change.point);
+                if (newValue !== value) {
+                    return change.addT(prevT);
+                }
+                prevT += change.t;
+                ray = new Ray(change.point, ray.direction);
+            }
         }
 
         nextChange(ray) {
