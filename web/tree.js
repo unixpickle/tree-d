@@ -59,7 +59,7 @@
                 return null;
             }
 
-            const curDot = this.axis.dot(ray.direction);
+            const curDot = this.axis.dot(ray.origin);
             const child = curDot >= this.threshold ? this.right : this.left;
             const normal = child === this.right ? this.axis : this.axis.scale(-1);
             const thisT = (this.threshold - curDot) / dirDot;
@@ -93,8 +93,7 @@
                 return minT;
             }
             if (this.axis.dot(ray.at(maxT)) < this.threshold == orig) {
-                console.error("impossible situation encountered: collision was expected");
-                return maxT;
+                throw Error("impossible situation encountered: collision was expected");
             }
             for (let i = 0; i < 32; ++i) {
                 const midT = (minT + maxT) / 2;
