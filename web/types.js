@@ -105,7 +105,7 @@
 
     window.treed = window['treed'] || {};
     window.treed['Vector'] = Vector;
-    window.treed['Ray'] = Vector;
+    window.treed['Ray'] = Ray;
     window.treed['ChangePoint'] = ChangePoint;
     window.treed['Camera'] = Camera;
 

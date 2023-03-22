@@ -29,7 +29,7 @@
         }
 
         isLeaf() {
-            return this.axis !== null;
+            return this.axis === null;
         }
 
         castRay(ray) {
@@ -81,7 +81,7 @@
             } else if (childRes !== null && thisT > childRes.t) {
                 return childRes;
             } else {
-                const changeT = this._changeT(origin, direction, thisT, thisT * 2);
+                const changeT = this._changeT(ray, thisT, thisT * 2);
                 return new ChangePoint(ray.at(changeT), normal, changeT);
             }
         }
