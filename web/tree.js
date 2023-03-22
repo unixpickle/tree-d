@@ -179,7 +179,7 @@
         const threshold = floatReader.next();
         const left = readTree(floatReader, leafFn);
         const right = readTree(floatReader, leafFn);
-        return new Tree(new Vector(x, y, z), threshold, left, right, null);
+        return new Tree(axis, threshold, left, right, null);
     }
 
     function flipToLittleEndian(input) {

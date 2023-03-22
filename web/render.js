@@ -5,9 +5,8 @@
     function renderTree(canvas, camera, tree) {
         const ctx = canvas.getContext('2d');
         const imageData = ctx.createImageData(canvas.width, canvas.height);
-        const rays = camera.rays(canvas.width);
         const lightDir = camera.origin.normalize().scale(-1);
-        rays.forEach((ray, i) => {
+        camera.pixelRays(canvas.width).forEach((ray, i) => {
             const result = tree.castRay(ray);
             imageData.data[i * 4 + 3] = 255;
             if (result !== null) {
