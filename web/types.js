@@ -31,6 +31,10 @@
             return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
         }
 
+        normalize() {
+            return this.scale(1 / this.norm());
+        }
+
         scale(s) {
             return new Vector(this.x * s, this.y * s, this.z * s);
         }
@@ -75,9 +79,34 @@
         }
     }
 
+    class Camera {
+        constructor(origin, x, y, z, fov) {
+            this.origin = origin;
+            this.x = x;
+            this.y = y;
+            this.z = z;
+            this.fov = fov;
+        }
+
+        pixelRays(size) {
+            const z = this.z.scale(1 / Math.tan(this.fov / 2));
+            const result = [];
+            for (let y = 0; y < size; ++y) {
+                const yFrac = 2 * y / size - 1;
+                for (let x = 0; x < size; ++x) {
+                    const xFrac = 2 * x / size - 1;
+                    const dir = this.x.scale(xFrac).add(this.y.scale(yFrac)).add(z).normalize();
+                    result.push(new Ray(this.origin, dir));
+                }
+            }
+            return result;
+        }
+    }
+
     window.treed = window['treed'] || {};
     window.treed['Vector'] = Vector;
     window.treed['Ray'] = Vector;
     window.treed['ChangePoint'] = ChangePoint;
+    window.treed['Camera'] = Camera;
 
 })();

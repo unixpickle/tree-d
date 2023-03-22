@@ -4,8 +4,21 @@
         <title>Tree-D</title>
         <script src="types.js" type="text/javascript"></script>
         <script src="tree.js" type="text/javascript"></script>
+        <script src="render.js" type="text/javascript"></script>
     </head>
     <body>
-        Hello
+        <canvas id="myCanvas" width="256" height="256"></canvas>
+        <script>
+            window.treed.fetchTree('/test.bin', 'bounded').then((tree) => {
+                const camera = new window.treed.Camera(
+                    new window.treed.Vector(0, 2, 0),
+                    new window.treed.Vector(1, 0, 0),
+                    new window.treed.Vector(0, 0, -1),
+                    new window.treed.Vector(0, -1, 0),
+                    0.69,
+                );
+                window.treed.renderTree(window.myCanvas, camera, tree);
+            });
+        </script>
     </body>
 </html>
