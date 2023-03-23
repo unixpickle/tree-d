@@ -43,6 +43,18 @@
             return new Vector(this.x + v.x, this.y + v.y, this.z + v.z);
         }
 
+        sub(v) {
+            return this.add(v.scale(-1));
+        }
+
+        mid(v) {
+            return this.add(v).scale(0.5);
+        }
+
+        absMax() {
+            return Math.max(Math.abs(this.x), Math.abs(this.y), Math.abs(this.z));
+        }
+
         getAxis(axis) {
             if (axis === 0) {
                 return this.x;
