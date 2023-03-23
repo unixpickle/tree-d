@@ -46,6 +46,20 @@
             }
         }
 
+        translate(t) {
+            if (this.isLeaf()) {
+                return this;
+            } else {
+                return new Tree(
+                    this.axis,
+                    this.threshold + this.axis.dot(t),
+                    this.left.translate(t),
+                    this.right.translate(t),
+                    null,
+                )
+            }
+        }
+
         castRay(ray) {
             const value = this.predict(ray.origin);
             let prevT = 0;
