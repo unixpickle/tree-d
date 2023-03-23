@@ -32,6 +32,20 @@
             return this.axis === null;
         }
 
+        scale(s) {
+            if (this.isLeaf()) {
+                return this;
+            } else {
+                return new Tree(
+                    this.axis,
+                    this.threshold * s,
+                    this.left.scale(s),
+                    this.right.scale(s),
+                    null,
+                )
+            }
+        }
+
         castRay(ray) {
             const value = this.predict(ray.origin);
             let prevT = 0;
