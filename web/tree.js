@@ -162,7 +162,7 @@
             tree = new Tree(ax, min.getAxis(axis), Tree.newLeaf(false), tree);
             tree = new Tree(ax, max.getAxis(axis), tree, Tree.newLeaf(false));
         }
-        return tree;
+        return [tree, min, max];
     }
 
     function readTree(floatReader, leafFn) {

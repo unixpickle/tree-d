@@ -2,7 +2,7 @@
 
     const Vector = window.treed['Vector'];
 
-    function renderTree(canvas, camera, tree) {
+    function renderTree(canvas, camera, tree, normalMap) {
         const ctx = canvas.getContext('2d');
         const imageData = ctx.createImageData(canvas.width, canvas.height);
         const lightDir = camera.origin.normalize().scale(-1);
@@ -10,7 +10,8 @@
             const result = tree.castRay(ray);
             imageData.data[i * 4 + 3] = 255;
             if (result !== null) {
-                const brightness = Math.abs(lightDir.dot(result.normal));
+                const normal = normalMap ? normalMap.predict(result.point) : result.normal;
+                const brightness = Math.abs(lightDir.dot(normal));
                 const pixel = Math.round(brightness * 255);
                 imageData.data[i * 4] = pixel;
                 imageData.data[i * 4 + 1] = pixel;
