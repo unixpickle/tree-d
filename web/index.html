@@ -9,15 +9,23 @@
     <body>
         <canvas id="myCanvas" width="256" height="256"></canvas>
         <script>
-            window.treed.fetchTree('/test.bin', 'bounded').then((tree) => {
-                const camera = new window.treed.Camera(
-                    new window.treed.Vector(0, 10, 2),
-                    new window.treed.Vector(1, 0, 0),
-                    new window.treed.Vector(0, 0, -1),
-                    new window.treed.Vector(0, -1, 0),
-                    0.69,
-                );
-                window.treed.renderTree(window.myCanvas, camera, tree);
+            window.treed.fetchTree('/data/corgi.bin', 'bounded').then((model) => {
+                const [rawTree, min, max] = model;
+                const scale = 2 / (max.sub(min).absMax());
+                const translate = min.mid(max).scale(-1);
+                const tree = rawTree.translate(translate).scale(scale);
+                return window.treed.fetchTree('/data/corgi_normals.bin', 'coord')
+                    .then((normalMap) => {
+                        normalMap = normalMap.translate(translate).scale(scale);
+                        const camera = new window.treed.Camera(
+                            new window.treed.Vector(0, 3, 0),
+                            new window.treed.Vector(1, 0, 0),
+                            new window.treed.Vector(0, 0, -1),
+                            new window.treed.Vector(0, -1, 0),
+                            0.69,
+                        );
+                        window.treed.renderTree(window.myCanvas, camera, tree, normalMap);
+                    });
             });
         </script>
     </body>
