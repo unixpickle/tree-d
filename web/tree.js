@@ -54,10 +54,6 @@
                 return null;
             }
             const dirDot = ray.direction.dot(this.axis);
-            const absDirDot = Math.abs(dirDot);
-            if (absDirDot < this.axis.norm() * ray.direction.norm() * 1e-8) {
-                return null;
-            }
 
             const curDot = this.axis.dot(ray.origin);
             const child = curDot >= this.threshold ? this.right : this.left;
@@ -76,7 +72,7 @@
             }
 
             const childRes = child.nextChange(ray);
-            if (thisT <= 0) {
+            if (thisT <= 0 || Math.abs(dirDot) < this.axis.norm() * ray.direction.norm() * 1e-8) {
                 return childRes;
             } else if (childRes !== null && thisT > childRes.t) {
                 return childRes;
