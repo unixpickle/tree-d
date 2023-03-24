@@ -105,7 +105,7 @@
             } else if (childRes !== null && thisT > childRes.t) {
                 return childRes;
             } else {
-                const changeT = this._changeT(ray, thisT, thisT * 2);
+                const changeT = this._changeT(ray, thisT, Math.max(1e-4, thisT * 2));
                 return new ChangePoint(ray.at(changeT), normal, changeT);
             }
         }

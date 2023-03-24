@@ -274,7 +274,11 @@ func (t *Tree[F, C, T]) nextBranchChange(origin, direction C) (point, normal C, 
 		if thisT > childT {
 			return childPoint, childNormal, childT
 		} else {
-			changeT := t.changeT(origin, direction, thisT, thisT*2)
+			maxT := thisT * 2
+			if maxT < 1e-4 {
+				maxT = 1e-4
+			}
+			changeT := t.changeT(origin, direction, thisT, maxT)
 			return origin.Add(direction.Scale(changeT)), normal, changeT
 		}
 	}
