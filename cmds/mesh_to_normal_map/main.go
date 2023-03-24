@@ -59,6 +59,16 @@ func main() {
 	f.Close()
 	essentials.Must(err)
 	inputMesh := model3d.NewMeshTriangles(inputTris)
+	removed := 0
+	inputMesh.Iterate(func(t *model3d.Triangle) {
+		if t.Area() == 0 {
+			removed++
+			inputMesh.Remove(t)
+		}
+	})
+	if removed > 0 {
+		log.Printf(" - removed %d invalid triangles", removed)
+	}
 	meshField := model3d.MeshToSDF(inputMesh)
 
 	log.Println("Sampling dataset...")
