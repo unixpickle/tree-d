@@ -13,6 +13,7 @@ let currentModel = null;
 let currentNormals = null;
 let currentModelPath = null;
 let currentNormalsPath = null;
+let currentTransform = (x) => x;
 
 function onmessage(event) {
     const d = event.data;
@@ -26,11 +27,16 @@ function onmessage(event) {
 
 async function renderModel(modelPath, normalsPath, camera) {
     if (modelPath !== currentModelPath) {
-        currentModel = await fetchTree(modelPath, 'bounded');
+        const [rawTree, min, max] = await fetchTree(modelPath, 'bounded');
         currentModelPath = modelPath;
+
+        const scale = 2 / (max.sub(min).absMax());
+        const translate = min.mid(max).scale(-1);
+        currentTransform = (x) => x.translate(translate).scale(scale);
+        currentModel = currentTransform(rawTree);
     }
     if (normalsPath !== currentNormalsPath) {
-        currentNormals = await fetchTree(modelPath, 'coord');
+        currentNormals = currentTransform(await fetchTree(modelPath, 'coord'))
         currentNormalsPath = normalsPath;
     }
     renderTree(canvas, camera, currentModel, currentNormals);
