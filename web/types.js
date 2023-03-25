@@ -23,6 +23,14 @@
             return new Vector(0, 0, 0);
         }
 
+        static fromArray(x) {
+            return new Vector(x[0], x[1], x[2]);
+        }
+
+        toArray() {
+            return [this.x, this.y, this.z];
+        }
+
         dot(v1) {
             return this.x * v1.x + this.y * v1.y + this.z * v1.z;
         }
@@ -98,6 +106,26 @@
             this.y = y;
             this.z = z;
             this.fov = fov;
+        }
+
+        static undump(obj) {
+            return new Camera(
+                Vector.fromArray(obj.origin),
+                Vector.fromArray(obj.x),
+                Vector.fromArray(obj.y),
+                Vector.fromArray(obj.z),
+                obj.fov,
+            );
+        }
+
+        dump() {
+            return {
+                origin: this.origin.toArray(),
+                x: this.x.toArray(),
+                y: this.y.toArray(),
+                z: this.z.toArray(),
+                fov: this.fov,
+            };
         }
 
         pixelRays(size) {
