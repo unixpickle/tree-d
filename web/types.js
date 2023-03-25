@@ -143,10 +143,10 @@
         }
     }
 
-    window.treed = window['treed'] || {};
-    window.treed['Vector'] = Vector;
-    window.treed['Ray'] = Ray;
-    window.treed['ChangePoint'] = ChangePoint;
-    window.treed['Camera'] = Camera;
+    self.treed = self['treed'] || {};
+    self.treed['Vector'] = Vector;
+    self.treed['Ray'] = Ray;
+    self.treed['ChangePoint'] = ChangePoint;
+    self.treed['Camera'] = Camera;
 
 })();

@@ -1,6 +1,6 @@
 (function () {
 
-    const Vector = window.treed['Vector'];
+    const Vector = self.treed['Vector'];
 
     function renderTree(canvas, camera, tree, normalMap) {
         const ctx = canvas.getContext('2d');
@@ -21,6 +21,6 @@
         ctx.putImageData(imageData, 0, 0);
     }
 
-    window.treed['renderTree'] = renderTree;
+    self.treed['renderTree'] = renderTree;
 
 })();

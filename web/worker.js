@@ -4,9 +4,9 @@ importScripts(
     '/render.js',
 );
 
-const Camera = window.treed.Camera;
-const fetchTree = window.treed.fetchTree;
-const renderTree = window.treed.renderTree;
+const Camera = self.treed.Camera;
+const fetchTree = self.treed.fetchTree;
+const renderTree = self.treed.renderTree;
 
 let canvas = null;
 let currentModel = null;

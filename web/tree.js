@@ -1,8 +1,8 @@
 (function () {
 
-    const Vector = window.treed['Vector'];
-    const Ray = window.treed['Ray'];
-    const ChangePoint = window.treed['ChangePoint'];
+    const Vector = self.treed['Vector'];
+    const Ray = self.treed['Ray'];
+    const ChangePoint = self.treed['ChangePoint'];
 
     class Tree {
         constructor(axis, threshold, left, right, leaf) {
@@ -231,7 +231,7 @@
         return new Uint8Array(x)[0] != 0;
     }
 
-    window.treed['Tree'] = Tree;
-    window.treed['fetchTree'] = fetchTree;
+    self.treed['Tree'] = Tree;
+    self.treed['fetchTree'] = fetchTree;
 
 })();
