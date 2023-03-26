@@ -1,7 +1,5 @@
 (function () {
 
-    const Vector = self.treed['Vector'];
-
     function renderTree(canvas, camera, tree, normalMap) {
         const ctx = canvas.getContext('2d');
         const imageData = ctx.createImageData(canvas.width, canvas.height);
