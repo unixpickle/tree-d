@@ -130,6 +130,10 @@
             this.i = i;
         }
 
+        static identity() {
+            return new Matrix(1, 0, 0, 0, 1, 0, 0, 0, 1);
+        }
+
         static rotation(v, theta) {
             const basis = v.orthoBasis();
             const raw = new Matrix(
@@ -242,6 +246,7 @@
 
     self.treed = self['treed'] || {};
     self.treed['Vector'] = Vector;
+    self.treed['Matrix'] = Matrix;
     self.treed['Ray'] = Ray;
     self.treed['ChangePoint'] = ChangePoint;
     self.treed['Camera'] = Camera;

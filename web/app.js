@@ -1,20 +1,63 @@
 (function () {
 
+    const Vector = self.treed.Vector;
+    const Matrix = self.treed.Matrix;
+    const Camera = self.treed.Camera;
+
     class App {
         constructor() {
             this.renderer = new Renderer();
             this.renderer.onError = (e) => {
                 alert(e);
             };
-            const camera = new window.treed.Camera(
-                new window.treed.Vector(0, 3, 0),
-                new window.treed.Vector(1, 0, 0),
-                new window.treed.Vector(0, 0, -1),
-                new window.treed.Vector(0, -1, 0),
+            this.canvas = document.getElementById('canvas');
+            this.matrix = Matrix.identity();
+            this.rerender();
+            this.setupPointerEvents();
+        }
+
+        camera() {
+            const mat = this.matrix;
+            return new Camera(
+                mat.apply(new Vector(0, 3, 0)),
+                mat.apply(new Vector(1, 0, 0)),
+                mat.apply(new Vector(0, 0, -1)),
+                mat.apply(new Vector(0, -1, 0)),
                 0.69,
             );
-            this.renderer.request('/data/corgi.bin', '/data/corgi_normals.bin', camera);
         }
+
+        rerender() {
+            this.renderer.request('/data/corgi.bin', '/data/corgi_normals.bin', this.camera());
+        }
+
+        setupPointerEvents() {
+            this.canvas.addEventListener('mousedown', (e) => {
+                const p1 = eventPosition(e);
+                const initMatrix = this.matrix;
+                const mousemove = (e) => {
+                    const p2 = eventPosition(e);
+                    const offset = p2.sub(p1);
+                    if (offset.norm() === 0) {
+                        this.matrix = initMatrix;
+                    } else {
+                        const axis = offset.normalize();
+                        const distance = offset.norm();
+                        const transAxis = new Vector(-axis.z, 0, axis.x);
+                        this.matrix = initMatrix.mul(Matrix.rotation(transAxis, distance / 100).t());
+                        this.rerender();
+                    }
+                };
+                window.addEventListener('mousemove', mousemove);
+                window.addEventListener('mouseup', (_) => {
+                    window.removeEventListener('mousemove', mousemove);
+                });
+            });
+        }
+    }
+
+    function eventPosition(e) {
+        return new Vector(e.clientX, 0, -e.clientY);
     }
 
     class Renderer {
