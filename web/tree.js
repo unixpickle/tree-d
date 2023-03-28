@@ -127,17 +127,28 @@
         }
 
         _changeT(ray, minT, maxT) {
-            const orig = this.branch.axis.dot(ray.origin) < this.branch.threshold;
+            const axis = this.branch.axis;
+            const threshold = this.branch.threshold;
+
+            const orig = axis.dot(ray.origin) < threshold;
             const x = ray.at(minT);
-            if (this.branch.axis.dot(x) < this.branch.threshold != orig) {
+            if (axis.dot(x) < threshold != orig) {
                 return minT;
             }
-            if (this.branch.axis.dot(ray.at(maxT)) < this.branch.threshold == orig) {
+
+            // Shortcut for common case.
+            const nextT = minT + 1e-8 * (maxT - minT);
+            if (axis.dot(ray.at(nextT)) < threshold != orig) {
+                return nextT;
+            }
+
+            // Binary search for rare case.
+            if (axis.dot(ray.at(maxT)) < threshold == orig) {
                 throw Error("impossible situation encountered: collision was expected");
             }
             for (let i = 0; i < 32; ++i) {
                 const midT = (minT + maxT) / 2;
-                if (this.branch.axis.dot(ray.at(midT)) < this.branch.threshold != orig) {
+                if (axis.dot(ray.at(midT)) < threshold != orig) {
                     maxT = midT;
                 } else {
                     minT = midT;
