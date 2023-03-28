@@ -26,7 +26,11 @@
                     return null;
                 }
                 const change = internalChange.changePoint(ray);
-                const newValue = this.predict(change.point);
+
+                // Notably, we could do this.predict() instead of using the branch
+                // which changed, and we might get more accurate results, but it is
+                // slower to do so in practice.
+                const newValue = internalChange.branch.predict(change.point);
                 if (newValue !== value) {
                     return change.addT(prevT);
                 }
