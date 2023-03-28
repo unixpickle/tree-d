@@ -11,6 +11,8 @@
             this.left = left;
             this.right = right;
             this.leaf = leaf;
+
+            this._axisNorm = axis ? axis.norm() : 0;
         }
 
         static newLeaf(value) {
@@ -64,10 +66,11 @@
             const value = this.predict(ray.origin);
             let prevT = 0;
             while (true) {
-                const change = this.nextChange(ray);
-                if (change === null) {
+                const internalChange = this._nextChange(ray);
+                if (internalChange === null) {
                     return null;
                 }
+                const change = internalChange.changePoint(ray);
                 const newValue = this.predict(change.point);
                 if (newValue !== value) {
                     return change.addT(prevT);
@@ -77,7 +80,7 @@
             }
         }
 
-        nextChange(ray) {
+        _nextChange(ray) {
             if (this.isLeaf()) {
                 return null;
             }
@@ -85,7 +88,7 @@
 
             const curDot = this.axis.dot(ray.origin);
             const child = curDot >= this.threshold ? this.right : this.left;
-            const normal = child === this.right ? this.axis : this.axis.scale(-1);
+            const normalScale = child === this.right ? 1 : -1;
             const thisT = (this.threshold - curDot) / dirDot;
 
             // This edge case might seem extremely unusual, but it actually occurs
@@ -94,34 +97,47 @@
                 const maxT = 1e8;
                 const maxDot = this.axis.dot(ray.at(maxT));
                 if ((curDot >= this.threshold) != (maxDot >= this.threshold)) {
-                    const changeT = this._changeT(ray, thisT, maxT);
-                    return new ChangePoint(ray.at(changeT), normal, changeT);
+                    return new InternalChangePoint(this, normalScale, thisT, maxT);
                 }
             }
 
-            const childRes = child.nextChange(ray);
-            if (thisT <= 0 || Math.abs(dirDot) < this.axis.norm() * ray.direction.norm() * 1e-8) {
+            const childRes = child._nextChange(ray);
+            if (thisT <= 0 || Math.abs(dirDot) < this._axisNorm * 1e-8) {
                 return childRes;
             } else if (childRes !== null && thisT > childRes.t) {
                 return childRes;
             } else {
-                const changeT = this._changeT(ray, thisT, Math.max(1e-4, thisT * 2));
-                return new ChangePoint(ray.at(changeT), normal, changeT);
+                return new InternalChangePoint(this, normalScale, thisT, Math.max(thisT * 2, 1e-4));
             }
+        }
+    }
+
+    class InternalChangePoint {
+        constructor(branch, normalScale, t, maxT) {
+            this.branch = branch;
+            this.normalScale = normalScale;
+            this.t = t;
+            this.maxT = maxT;
+        }
+
+        changePoint(ray) {
+            const t = this._changeT(ray, this.t, this.maxT);
+            const normal = this.branch.axis.normalize().scale(this.normalScale);
+            return new ChangePoint(ray.at(t), normal, t);
         }
 
         _changeT(ray, minT, maxT) {
-            const orig = this.axis.dot(ray.origin) < this.threshold;
+            const orig = this.branch.axis.dot(ray.origin) < this.branch.threshold;
             const x = ray.at(minT);
-            if (this.axis.dot(x) < this.threshold != orig) {
+            if (this.branch.axis.dot(x) < this.branch.threshold != orig) {
                 return minT;
             }
-            if (this.axis.dot(ray.at(maxT)) < this.threshold == orig) {
+            if (this.branch.axis.dot(ray.at(maxT)) < this.branch.threshold == orig) {
                 throw Error("impossible situation encountered: collision was expected");
             }
             for (let i = 0; i < 32; ++i) {
                 const midT = (minT + maxT) / 2;
-                if (this.axis.dot(ray.at(midT)) < this.threshold != orig) {
+                if (this.branch.axis.dot(ray.at(midT)) < this.branch.threshold != orig) {
                     maxT = midT;
                 } else {
                     minT = midT;
