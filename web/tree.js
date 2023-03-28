@@ -4,62 +4,17 @@
     const Ray = self.treed['Ray'];
     const ChangePoint = self.treed['ChangePoint'];
 
-    class Tree {
-        constructor(axis, threshold, left, right, leaf) {
-            this.axis = axis;
-            this.threshold = threshold;
-            this.left = left;
-            this.right = right;
-            this.leaf = leaf;
-
-            this._axisNorm = axis ? axis.norm() : 0;
-        }
-
-        static newLeaf(value) {
-            return new Tree(null, null, null, null, value);
-        }
-
+    class TreeBase {
         predict(x) {
-            if (this.isLeaf()) {
-                return this.leaf;
-            }
-            if (this.axis.dot(x) < this.threshold) {
-                return this.left.predict(x);
-            } else {
-                return this.right.predict(x);
-            }
-        }
-
-        isLeaf() {
-            return this.axis === null;
+            return null;
         }
 
         scale(s) {
-            if (this.isLeaf()) {
-                return this;
-            } else {
-                return new Tree(
-                    this.axis,
-                    this.threshold * s,
-                    this.left.scale(s),
-                    this.right.scale(s),
-                    null,
-                )
-            }
+            return this;
         }
 
         translate(t) {
-            if (this.isLeaf()) {
-                return this;
-            } else {
-                return new Tree(
-                    this.axis,
-                    this.threshold + this.axis.dot(t),
-                    this.left.translate(t),
-                    this.right.translate(t),
-                    null,
-                )
-            }
+            return this;
         }
 
         castRay(ray) {
@@ -81,9 +36,58 @@
         }
 
         _nextChange(ray) {
-            if (this.isLeaf()) {
-                return null;
+            return null;
+        }
+    }
+
+    class Leaf extends TreeBase {
+        constructor(value) {
+            super();
+            this.value = value;
+        }
+
+        predict(_) {
+            return this.value;
+        }
+    }
+
+    class Branch extends TreeBase {
+        constructor(axis, threshold, left, right) {
+            super();
+            this.axis = axis;
+            this.threshold = threshold;
+            this.left = left;
+            this.right = right;
+            this._axisNorm = axis.norm();
+        }
+
+        predict(x) {
+            if (this.axis.dot(x) < this.threshold) {
+                return this.left.predict(x);
+            } else {
+                return this.right.predict(x);
             }
+        }
+
+        scale(s) {
+            return new Branch(
+                this.axis,
+                this.threshold * s,
+                this.left.scale(s),
+                this.right.scale(s),
+            );
+        }
+
+        translate(t) {
+            return new Branch(
+                this.axis,
+                this.threshold + this.axis.dot(t),
+                this.left.translate(t),
+                this.right.translate(t),
+            );
+        }
+
+        _nextChange(ray) {
             const dirDot = ray.direction.dot(this.axis);
 
             const curDot = this.axis.dot(ray.origin);
@@ -214,8 +218,8 @@
         // Apply bounds as branches of the tree.
         for (let axis = 0; axis < 3; ++axis) {
             const ax = Vector.axis(axis);
-            tree = new Tree(ax, min.getAxis(axis), Tree.newLeaf(false), tree);
-            tree = new Tree(ax, max.getAxis(axis), tree, Tree.newLeaf(false));
+            tree = new Branch(ax, min.getAxis(axis), new Leaf(false), tree);
+            tree = new Branch(ax, max.getAxis(axis), tree, new Leaf(false));
         }
         return [tree, min, max];
     }
@@ -224,12 +228,12 @@
         const axis = floatReader.nextVector();
         if (axis.x === 0 && axis.y === 0 && axis.z === 0) {
             const leaf = leafFn(floatReader);
-            return new Tree(null, null, null, null, leaf);
+            return new Leaf(leaf);
         }
         const threshold = floatReader.next();
         const left = readTree(floatReader, leafFn);
         const right = readTree(floatReader, leafFn);
-        return new Tree(axis, threshold, left, right, null);
+        return new Branch(axis, threshold, left, right);
     }
 
     function flipToLittleEndian(input) {
@@ -258,7 +262,8 @@
         return new Uint8Array(x)[0] != 0;
     }
 
-    self.treed['Tree'] = Tree;
+    self.treed['Branch'] = Branch;
+    self.treed['Leaf'] = Leaf;
     self.treed['fetchTree'] = fetchTree;
 
 })();
