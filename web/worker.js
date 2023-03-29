@@ -1,7 +1,7 @@
 importScripts(
-    '/types.js',
-    '/tree.js',
-    '/render.js',
+    'types.js',
+    'tree.js',
+    'render.js',
 );
 
 const Camera = self.treed.Camera;
@@ -18,14 +18,19 @@ let currentTransform = (x) => x;
 onmessage = (event) => {
     const d = event.data;
     canvas = d.canvas || canvas;
-    renderModel(d.modelPath, d.normalsPath, Camera.undump(d.camera)).then((_) => {
-        postMessage({ modelPath: d.modelPath, normalsPath: d.normalsPath, camera: d.camera });
+    renderModel(d.modelPath, d.normalsPath, Camera.undump(d.camera), d.options).then((_) => {
+        postMessage({
+            modelPath: d.modelPath,
+            normalsPath: d.normalsPath,
+            camera: d.camera,
+            options: d.options,
+        });
     }).catch((e) => {
         postMessage({ error: e.toString() });
     });
 }
 
-async function renderModel(modelPath, normalsPath, camera) {
+async function renderModel(modelPath, normalsPath, camera, options) {
     if (modelPath !== currentModelPath) {
         const [rawTree, min, max] = await fetchTree(modelPath, 'bounded');
         currentModelPath = modelPath;
@@ -39,5 +44,5 @@ async function renderModel(modelPath, normalsPath, camera) {
         currentNormals = currentTransform(rawTree);
         currentNormalsPath = normalsPath;
     }
-    renderTree(canvas, camera, currentModel, currentNormals);
+    renderTree(canvas, camera, currentModel, options.useNormals ? currentNormals : null);
 }
