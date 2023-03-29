@@ -59,6 +59,11 @@
             return this.add(v).scale(0.5);
         }
 
+        reflect(c1) {
+            const n = this.normalize();
+            return c1.add(n.scale(-2 * n.dot(c1))).scale(-1);
+        }
+
         absMax() {
             return Math.max(Math.abs(this.x), Math.abs(this.y), Math.abs(this.z));
         }
