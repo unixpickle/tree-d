@@ -1,0 +1,43 @@
+#container {
+    width: 300px;
+    margin: auto;
+}
+
+body {
+    font-size: 1.2em;
+    background-color: #f0f0f0;
+}
+
+#container {
+    box-shadow: 0 0 3px 3px rgba(0, 0, 0, 0.3);
+    background-color: white;
+    padding: 10px;
+    text-align: center;
+}
+
+#canvas-container {
+    margin-top: 10px;
+}
+
+.setting {
+    display: table;
+}
+
+.setting-select {
+    margin: 0 0.3em;
+    font-size: 0.8em;
+    vertical-align: middle;
+}
+
+.setting-check {
+    vertical-align: middle;
+    margin-top: 0.4em;
+    margin-right: 0.4em;
+    display: inline-block;
+}
+
+.setting-label {
+    display: inline-block;
+    vertical-align: top;
+    line-height: 1.5em;
+}
