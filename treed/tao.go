@@ -72,7 +72,7 @@ func (t *TAO[F, C, T]) optimize(
 
 	// Note that this has side-effects. In particular, coords and labels are
 	// re-ordered to split the decision boundary.
-	splitIdx := splitDecision(tree.Axis, tree.Threshold, coords, labels)
+	splitIdx := Partition(tree.Axis, tree.Threshold, coords, labels)
 	leftResult, rightResult := queue.Fork(
 		func() TAOResult[F, C, T] {
 			return t.optimize(queue, tree.LessThan, coords[:splitIdx], labels[:splitIdx])
@@ -222,7 +222,10 @@ func (t *TAO[F, C, T]) linearSVM(w C, b F, coords []C, targets []bool, weights [
 	return result.Weight, result.Bias
 }
 
-func splitDecision[F constraints.Float, C Coord[F, C], T any](
+// Partition re-orders coords and labels such that all coords falling on the
+// less-than side of an axis are before all coords falling on the greater-equal
+// side. Returns the number of coords on the less-than side.
+func Partition[F constraints.Float, C Coord[F, C], T any](
 	axis C,
 	threshold F,
 	coords []C,

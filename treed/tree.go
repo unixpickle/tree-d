@@ -94,7 +94,7 @@ func (t *Tree[F, C, T]) simplify(
 		return t
 	}
 
-	idx := splitDecision(t.Axis, t.Threshold, coords, labels)
+	idx := Partition(t.Axis, t.Threshold, coords, labels)
 	if idx == 0 {
 		return t.GreaterEqual
 	} else if idx == len(coords) {

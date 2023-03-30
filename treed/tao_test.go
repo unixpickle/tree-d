@@ -7,7 +7,7 @@ import (
 	"github.com/unixpickle/model3d/model3d"
 )
 
-func TestSplitDecision(t *testing.T) {
+func TestPartition(t *testing.T) {
 	inputCoords := make([]model3d.Coord3D, 30)
 	inputTargets := make([]bool, 30)
 	inputMapping := map[model3d.Coord3D]bool{}
@@ -21,7 +21,7 @@ func TestSplitDecision(t *testing.T) {
 	targets := append([]bool{}, inputTargets...)
 	axis := model3d.XY(1.0, -1.0)
 	threshold := 0.1
-	idx := splitDecision(axis, threshold, coords, targets)
+	idx := Partition(axis, threshold, coords, targets)
 
 	for i, c := range coords {
 		decision := axis.Dot(c) >= threshold
