@@ -59,24 +59,27 @@ func main() {
 		}
 	})
 
-	log.Println("Creating initial cache...")
-	cache := map[*treed.SolidTree]*Replacement{}
-	PopulateCache(tree.Tree, points, values, cache)
-	initQuality := TreeQuality(tree.Tree, points, values)
-
 	log.Println("Pruning...")
+	initLeaves := tree.Tree.NumLeaves()
+	initQuality := TreeQuality(tree.Tree, points, values)
 	for tree.Tree.NumLeaves() > maxLeaves {
-		replacement := BestInCache(cache)
-		if replacement == nil {
-			fmt.Println(tree.Tree, cache)
+		replacement, _ := BestReplacement(tree.Tree, points, values)
+		if replacement.Replace == tree.Tree {
+			tree.Tree = replacement.With
+		} else {
+			if !Replace(tree.Tree, replacement.Replace, replacement.With) {
+				panic("no branch found; this should be impossible")
+			}
 		}
-		Replace(tree.Tree, replacement.Replace, replacement.With)
-		cache = PruneCache(tree.Tree, cache)
-		PopulateCacheUnder(replacement.With, tree.Tree, points, values, cache)
 	}
 	finalQuality := TreeQuality(tree.Tree, points, values)
-	log.Printf("Quality went from %f => %f (at %d leaves)",
-		initQuality, finalQuality, tree.Tree.NumLeaves())
+	log.Printf(
+		"Quality went from %f => %f (%d => %d leaves)",
+		initQuality,
+		finalQuality,
+		initLeaves,
+		tree.Tree.NumLeaves(),
+	)
 
 	log.Println("Saving tree...")
 	f, err = os.Create(outputPath)
@@ -86,103 +89,61 @@ func main() {
 	essentials.Must(err)
 }
 
-func Replace(t, old, new *treed.SolidTree) {
+func Replace(t, old, new *treed.SolidTree) bool {
 	if t.IsLeaf() {
-		return
-	}
-	if t.LessThan == old {
+		return false
+	} else if t.LessThan == old {
 		t.LessThan = new
+		return true
 	} else if t.GreaterEqual == old {
 		t.GreaterEqual = new
+		return true
 	} else {
-		Replace(t.LessThan, old, new)
-		Replace(t.GreaterEqual, old, new)
+		return Replace(t.LessThan, old, new) || Replace(t.GreaterEqual, old, new)
 	}
 }
 
-func BestInCache(cache map[*treed.SolidTree]*Replacement) *Replacement {
-	var res *Replacement
-	for _, v := range cache {
-		if res == nil || res.NewQuality-res.OldQuality < v.NewQuality-v.OldQuality {
-			res = v
-		}
-	}
-	return res
-}
-
-func PruneCache(t *treed.SolidTree, cache map[*treed.SolidTree]*Replacement) map[*treed.SolidTree]*Replacement {
-	seen := map[*treed.SolidTree]struct{}{}
-	var treeNodes func(t *treed.SolidTree)
-	treeNodes = func(t *treed.SolidTree) {
-		if !t.IsLeaf() {
-			seen[t] = struct{}{}
-			treeNodes(t.LessThan)
-			treeNodes(t.GreaterEqual)
-		}
-	}
-	treeNodes(t)
-
-	res := map[*treed.SolidTree]*Replacement{}
-	for k, v := range cache {
-		if _, ok := seen[k]; ok {
-			res[k] = v
-		}
-	}
-	return res
-}
-
-func PopulateCacheUnder(
-	parent *treed.SolidTree,
+func BestReplacement(
 	t *treed.SolidTree,
 	inputs []model3d.Coord3D,
 	targets []bool,
-	cache map[*treed.SolidTree]*Replacement,
-) {
-	if t == parent {
-		PopulateCache(t, inputs, targets, cache)
-	} else if !t.IsLeaf() {
-		mid := treed.Partition(t.Axis, t.Threshold, inputs, targets)
-		PopulateCacheUnder(parent, t.LessThan, inputs[:mid], targets[:mid], cache)
-		PopulateCacheUnder(parent, t.GreaterEqual, inputs[mid:], targets[mid:], cache)
-	}
-}
-
-func PopulateCache(
-	t *treed.SolidTree,
-	inputs []model3d.Coord3D,
-	targets []bool,
-	cache map[*treed.SolidTree]*Replacement,
-) float64 {
+) (*Replacement, float64) {
 	if t.IsLeaf() {
 		q := TreeQuality(t, inputs, targets)
-		return q
+		return nil, q
 	}
 
 	mid := treed.Partition(t.Axis, t.Threshold, inputs, targets)
-	leftQuality := PopulateCache(t.LessThan, inputs[:mid], targets[:mid], cache)
+	leftRes, leftQuality := BestReplacement(t.LessThan, inputs[:mid], targets[:mid])
 	leftOther := TreeQuality(t.LessThan, inputs[mid:], targets[mid:])
-	rightQuality := PopulateCache(t.GreaterEqual, inputs[mid:], targets[mid:], cache)
+	rightRes, rightQuality := BestReplacement(t.GreaterEqual, inputs[mid:], targets[mid:])
 	rightOther := TreeQuality(t.GreaterEqual, inputs[:mid], targets[:mid])
 
 	q := leftQuality + rightQuality
 	leftNewQuality := leftQuality + leftOther
 	rightNewQuality := rightQuality + rightOther
+	var res *Replacement
 	if leftNewQuality > rightNewQuality {
-		cache[t] = &Replacement{
+		res = &Replacement{
 			OldQuality: q,
 			NewQuality: leftNewQuality,
 			Replace:    t,
 			With:       t.LessThan,
 		}
 	} else {
-		cache[t] = &Replacement{
+		res = &Replacement{
 			OldQuality: q,
 			NewQuality: rightNewQuality,
 			Replace:    t,
 			With:       t.GreaterEqual,
 		}
 	}
-	return q
+	for _, r := range []*Replacement{leftRes, rightRes} {
+		if r != nil && r.Delta() > res.Delta() {
+			res = r
+		}
+	}
+	return res, q
 }
 
 type Replacement struct {
@@ -191,6 +152,10 @@ type Replacement struct {
 
 	Replace *treed.SolidTree
 	With    *treed.SolidTree
+}
+
+func (r *Replacement) Delta() float64 {
+	return r.NewQuality - r.OldQuality
 }
 
 func TreeQuality(
