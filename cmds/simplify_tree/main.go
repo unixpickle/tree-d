@@ -167,19 +167,21 @@ func PopulateCache(
 	q := leftQuality + rightQuality
 	leftNewQuality := leftQuality + leftOther
 	rightNewQuality := rightQuality + rightOther
-	onlyRight := &Replacement{
-		OldQuality: q,
-		NewQuality: leftNewQuality,
-		Replace:    t,
-		With:       t.LessThan,
+	if leftNewQuality > rightNewQuality {
+		cache[t] = &Replacement{
+			OldQuality: q,
+			NewQuality: leftNewQuality,
+			Replace:    t,
+			With:       t.LessThan,
+		}
+	} else {
+		cache[t] = &Replacement{
+			OldQuality: q,
+			NewQuality: rightNewQuality,
+			Replace:    t,
+			With:       t.GreaterEqual,
+		}
 	}
-	onlyLeft := &Replacement{
-		OldQuality: q,
-		NewQuality: rightNewQuality,
-		Replace:    t,
-		With:       t.GreaterEqual,
-	}
-	cache[t] = BestReplacement(onlyRight, onlyLeft)
 	return q
 }
 
@@ -189,18 +191,6 @@ type Replacement struct {
 
 	Replace *treed.SolidTree
 	With    *treed.SolidTree
-}
-
-func BestReplacement(prunes ...*Replacement) *Replacement {
-	var res *Replacement
-	for _, p := range prunes {
-		if res == nil {
-			res = p
-		} else if p.NewQuality > res.NewQuality {
-			res = p
-		}
-	}
-	return res
 }
 
 func TreeQuality(
