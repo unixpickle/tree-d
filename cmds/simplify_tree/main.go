@@ -61,22 +61,23 @@ func main() {
 
 	log.Println("Pruning...")
 	initLeaves := tree.Tree.NumLeaves()
-	initQuality := TreeQuality(tree.Tree, points, values)
+	loss := treed.EqualityTAOLoss[bool]{}
+	initLoss := treed.TotalTAOLoss[float64, model3d.Coord3D, bool](
+		tree.Tree, loss, points, values,
+	)
 	for tree.Tree.NumLeaves() > maxLeaves {
-		replacement, _ := BestReplacement(tree.Tree, points, values)
-		if replacement.Replace == tree.Tree {
-			tree.Tree = replacement.With
-		} else {
-			if !Replace(tree.Tree, replacement.Replace, replacement.With) {
-				panic("no branch found; this should be impossible")
-			}
-		}
+		replacement, _ := treed.BestReplacement[float64, model3d.Coord3D, bool](
+			tree.Tree, loss, points, values,
+		)
+		tree.Tree, _ = tree.Tree.Replace(replacement.Replace, replacement.With)
 	}
-	finalQuality := TreeQuality(tree.Tree, points, values)
+	finalLoss := treed.TotalTAOLoss[float64, model3d.Coord3D, bool](
+		tree.Tree, treed.EqualityTAOLoss[bool]{}, points, values,
+	)
 	log.Printf(
-		"Quality went from %f => %f (%d => %d leaves)",
-		initQuality,
-		finalQuality,
+		"Loss went from %f => %f (%d => %d leaves)",
+		initLoss,
+		finalLoss,
 		initLeaves,
 		tree.Tree.NumLeaves(),
 	)
@@ -87,87 +88,4 @@ func main() {
 	err = treed.WriteBoundedSolidTree(f, tree)
 	f.Close()
 	essentials.Must(err)
-}
-
-func Replace(t, old, new *treed.SolidTree) bool {
-	if t.IsLeaf() {
-		return false
-	} else if t.LessThan == old {
-		t.LessThan = new
-		return true
-	} else if t.GreaterEqual == old {
-		t.GreaterEqual = new
-		return true
-	} else {
-		return Replace(t.LessThan, old, new) || Replace(t.GreaterEqual, old, new)
-	}
-}
-
-func BestReplacement(
-	t *treed.SolidTree,
-	inputs []model3d.Coord3D,
-	targets []bool,
-) (*Replacement, float64) {
-	if t.IsLeaf() {
-		q := TreeQuality(t, inputs, targets)
-		return nil, q
-	}
-
-	mid := treed.Partition(t.Axis, t.Threshold, inputs, targets)
-	leftRes, leftQuality := BestReplacement(t.LessThan, inputs[:mid], targets[:mid])
-	leftOther := TreeQuality(t.LessThan, inputs[mid:], targets[mid:])
-	rightRes, rightQuality := BestReplacement(t.GreaterEqual, inputs[mid:], targets[mid:])
-	rightOther := TreeQuality(t.GreaterEqual, inputs[:mid], targets[:mid])
-
-	q := leftQuality + rightQuality
-	leftNewQuality := leftQuality + leftOther
-	rightNewQuality := rightQuality + rightOther
-	var res *Replacement
-	if leftNewQuality > rightNewQuality {
-		res = &Replacement{
-			OldQuality: q,
-			NewQuality: leftNewQuality,
-			Replace:    t,
-			With:       t.LessThan,
-		}
-	} else {
-		res = &Replacement{
-			OldQuality: q,
-			NewQuality: rightNewQuality,
-			Replace:    t,
-			With:       t.GreaterEqual,
-		}
-	}
-	for _, r := range []*Replacement{leftRes, rightRes} {
-		if r != nil && r.Delta() > res.Delta() {
-			res = r
-		}
-	}
-	return res, q
-}
-
-type Replacement struct {
-	OldQuality float64
-	NewQuality float64
-
-	Replace *treed.SolidTree
-	With    *treed.SolidTree
-}
-
-func (r *Replacement) Delta() float64 {
-	return r.NewQuality - r.OldQuality
-}
-
-func TreeQuality(
-	t *treed.SolidTree,
-	inputs []model3d.Coord3D,
-	targets []bool,
-) float64 {
-	var quality float64
-	for i, target := range targets {
-		if t.Predict(inputs[i]) == target {
-			quality++
-		}
-	}
-	return quality
 }

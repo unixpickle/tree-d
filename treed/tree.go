@@ -74,6 +74,28 @@ func (t *Tree[F, C, T]) NumLeaves() int {
 	return t.LessThan.NumLeaves() + t.GreaterEqual.NumLeaves()
 }
 
+// Replace swaps a node in the tree for a different node, and returns true in
+// the second argument if the old node was successfully found.
+func (t *Tree[F, C, T]) Replace(old, new *Tree[F, C, T]) (*Tree[F, C, T], bool) {
+	if t == old {
+		return new, true
+	} else if t.IsLeaf() {
+		return t, false
+	} else {
+		newLeft, ok1 := t.LessThan.Replace(old, new)
+		newRight, ok2 := t.GreaterEqual.Replace(old, new)
+		if ok1 || ok2 {
+			return &Tree[F, C, T]{
+				Axis:         t.Axis,
+				Threshold:    t.Threshold,
+				LessThan:     newLeft,
+				GreaterEqual: newRight,
+			}, true
+		}
+		return t, false
+	}
+}
+
 // SimplifyTree prunes the tree when it does not increase the loss.
 func (t *Tree[F, C, T]) Simplify(
 	coords []C,

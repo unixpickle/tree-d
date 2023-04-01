@@ -12,6 +12,21 @@ type TAOLoss[T any] interface {
 	Loss(label, prediction T) float64
 }
 
+// TotalTAOLoss predicts outputs for each input, and returns the sum of the
+// losses across all examples.
+func TotalTAOLoss[F constraints.Float, C Coord[F, C], T any](
+	t *Tree[F, C, T],
+	loss TAOLoss[T],
+	inputs []C,
+	targets []T,
+) float64 {
+	var total float64
+	for i, target := range targets {
+		total += loss.Loss(target, t.Predict(inputs[i]))
+	}
+	return total
+}
+
 // EqualityTAOLoss is always 1 when the label does not equal the target, and 0
 // otherwise. The mode of the inputs determines the leaf predictions.
 //
