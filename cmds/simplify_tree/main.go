@@ -67,7 +67,7 @@ func main() {
 	)
 	for tree.Tree.NumLeaves() > maxLeaves {
 		replacement, _ := treed.BestReplacement[float64, model3d.Coord3D, bool](
-			tree.Tree, loss, points, values,
+			tree.Tree, loss, points, values, 0,
 		)
 		tree.Tree, _ = tree.Tree.Replace(replacement.Replace, replacement.With)
 	}
