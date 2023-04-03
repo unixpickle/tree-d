@@ -122,17 +122,22 @@ func (g *greedySearchState[F, C, T]) Build(maxDepth int) *Tree[F, C, T] {
 	if bestResult.Index == 0 || bestResult.Index == len(g.Sorted[0]) {
 		return g.BuildLeaf()
 	}
-	split := g.Split(bestResult.Axis, bestResult.Index)
-
-	left := split[0].Build(maxDepth - 1)
-	right := split[1].Build(maxDepth - 1)
 
 	bestThresholds := g.Thresholds(bestResult.Axis)
 	v1 := bestThresholds.Get(bestResult.Index - 1)
 	v2 := bestThresholds.Get(bestResult.Index)
+	if v1 == v2 {
+		panic("split should not exist at equal values")
+	}
+	threshold := (v1 + v2) / 2
+
+	split := g.IntoSplit(bestResult.Axis, bestResult.Index)
+	left := split[0].Build(maxDepth - 1)
+	right := split[1].Build(maxDepth - 1)
+
 	return &Tree[F, C, T]{
 		Axis:         g.Axes[bestResult.Axis],
-		Threshold:    (v1 + v2) / 2,
+		Threshold:    threshold,
 		LessThan:     left,
 		GreaterEqual: right,
 	}
@@ -164,31 +169,41 @@ func (g *greedySearchState[F, C, T]) Thresholds(axis int) List[F] {
 	}
 }
 
-func (g *greedySearchState[F, C, T]) Split(axis int, index int) [2]*greedySearchState[F, C, T] {
+func (g *greedySearchState[F, C, T]) IntoSplit(axis int, index int) [2]*greedySearchState[F, C, T] {
 	for i, node := range g.Sorted[axis] {
 		node.IsRight = i >= index
 	}
 
 	var states [2]*greedySearchState[F, C, T]
-	for i, count := range [2]int{index, len(g.Sorted[0]) - index} {
-		isRight := i == 1
-		state := &greedySearchState[F, C, T]{
+	for i := range states {
+		states[i] = &greedySearchState[F, C, T]{
 			Axes:        g.Axes,
 			Sorted:      make([][]*greedySearchNode[F, C, T], len(g.Axes)),
 			Loss:        g.Loss,
 			Concurrency: g.Concurrency,
 		}
-		for j := range g.Axes {
+	}
+
+	otherCount := len(g.Sorted[0]) - index
+
+	for i := range g.Axes {
+		for j, count := range [2]int{index, otherCount} {
+			isRight := j == 1
 			subList := make([]*greedySearchNode[F, C, T], 0, count)
-			for _, node := range g.Sorted[j] {
+			for _, node := range g.Sorted[i] {
 				if node.IsRight == isRight {
 					subList = append(subList, node)
 				}
 			}
-			state.Sorted[j] = subList
+			states[j].Sorted[i] = subList
 		}
-		states[i] = state
+		// Avoid unnecessary memory usage.
+		g.Sorted[i] = nil
 	}
+
+	// Make sure future accesses will panic() immediately.
+	g.Sorted = nil
+
 	return states
 }
 
