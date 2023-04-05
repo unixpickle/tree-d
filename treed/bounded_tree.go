@@ -13,6 +13,22 @@ type BoundedTree[F constraints.Float, C Coord[F, C], T any] struct {
 	Tree *Tree[F, C, T]
 }
 
+func (b *BoundedTree[F, C, T]) Scale(s F) *BoundedTree[F, C, T] {
+	return &BoundedTree[F, C, T]{
+		Min:  b.Min.Scale(s),
+		Max:  b.Max.Scale(s),
+		Tree: b.Tree.Scale(s),
+	}
+}
+
+func (b *BoundedTree[F, C, T]) Translate(c C) *BoundedTree[F, C, T] {
+	return &BoundedTree[F, C, T]{
+		Min:  b.Min.Add(c),
+		Max:  b.Max.Add(c),
+		Tree: b.Tree.Translate(c),
+	}
+}
+
 func TreeSolid(b *BoundedSolidTree) model3d.Solid {
 	return model3d.CheckedFuncSolid(
 		b.Min,

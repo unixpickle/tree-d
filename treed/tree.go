@@ -74,6 +74,30 @@ func (t *Tree[F, C, T]) NumLeaves() int {
 	return t.LessThan.NumLeaves() + t.GreaterEqual.NumLeaves()
 }
 
+func (t *Tree[F, C, T]) Scale(s F) *Tree[F, C, T] {
+	if t.IsLeaf() {
+		return t
+	}
+	return &Tree[F, C, T]{
+		Axis:         t.Axis,
+		Threshold:    t.Threshold * s,
+		LessThan:     t.LessThan.Scale(s),
+		GreaterEqual: t.GreaterEqual.Scale(s),
+	}
+}
+
+func (t *Tree[F, C, T]) Translate(c C) *Tree[F, C, T] {
+	if t.IsLeaf() {
+		return t
+	}
+	return &Tree[F, C, T]{
+		Axis:         t.Axis,
+		Threshold:    t.Threshold + t.Axis.Dot(c),
+		LessThan:     t.LessThan.Translate(c),
+		GreaterEqual: t.GreaterEqual.Translate(c),
+	}
+}
+
 // Replace swaps a node in the tree for a different node, and returns true in
 // the second argument if the old node was successfully found.
 func (t *Tree[F, C, T]) Replace(old, new *Tree[F, C, T]) (*Tree[F, C, T], bool) {
@@ -96,7 +120,7 @@ func (t *Tree[F, C, T]) Replace(old, new *Tree[F, C, T]) (*Tree[F, C, T], bool) 
 	}
 }
 
-// SimplifyTree prunes the tree when it does not increase the loss.
+// Simplify prunes the tree when it does not increase the loss.
 func (t *Tree[F, C, T]) Simplify(
 	coords []C,
 	labels []T,
