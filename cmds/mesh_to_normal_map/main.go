@@ -46,17 +46,11 @@ func main() {
 	treePath, meshPath, outputPath := args[0], args[1], args[2]
 
 	log.Println("Loading tree...")
-	f, err := os.Open(treePath)
-	essentials.Must(err)
-	solidTree, err := treed.ReadBoundedSolidTree(f)
-	f.Close()
+	solidTree, err := treed.Load(treePath, treed.ReadBoundedSolidTree)
 	essentials.Must(err)
 
 	log.Println("Loading mesh...")
-	f, err = os.Open(meshPath)
-	essentials.Must(err)
-	inputTris, err := model3d.ReadSTL(f)
-	f.Close()
+	inputTris, err := treed.Load(meshPath, model3d.ReadSTL)
 	essentials.Must(err)
 	inputMesh := model3d.NewMeshTriangles(inputTris)
 	removed := 0
@@ -143,10 +137,5 @@ func main() {
 }
 
 func WriteTree(outputPath string, tree *treed.CoordTree) error {
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return treed.WriteCoordTree(f, tree)
+	return treed.Save(outputPath, tree, treed.WriteCoordTree)
 }

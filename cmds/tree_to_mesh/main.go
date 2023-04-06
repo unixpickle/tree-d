@@ -26,10 +26,7 @@ func main() {
 	inputPath, outputPath := args[0], args[1]
 
 	log.Println("Loading tree...")
-	f, err := os.Open(inputPath)
-	essentials.Must(err)
-	tree, err := treed.ReadBoundedSolidTree(f)
-	f.Close()
+	tree, err := treed.Load(inputPath, treed.ReadBoundedSolidTree)
 	essentials.Must(err)
 
 	log.Println("Creating mesh...")

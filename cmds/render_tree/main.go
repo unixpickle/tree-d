@@ -37,20 +37,14 @@ func main() {
 	inputPath, outputPath := args[0], args[1]
 
 	log.Println("Loading tree...")
-	f, err := os.Open(inputPath)
-	essentials.Must(err)
-	tree, err := treed.ReadBoundedSolidTree(f)
-	f.Close()
+	tree, err := treed.Load(inputPath, treed.ReadBoundedSolidTree)
 	essentials.Must(err)
 
 	log.Println("Creating renderable object...")
 	var collider model3d.Collider = treed.NewCollider(tree)
 	if normalMapPath != "" {
 		log.Println(" - Loading normal map...")
-		f, err = os.Open(normalMapPath)
-		essentials.Must(err)
-		normalMapTree, err := treed.ReadCoordTree(f)
-		f.Close()
+		normalMapTree, err := treed.Load(normalMapPath, treed.ReadCoordTree)
 		essentials.Must(err)
 		collider = treed.MapNormals(collider, normalMapTree)
 	}

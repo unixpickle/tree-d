@@ -29,17 +29,11 @@ func main() {
 	meshPath, inputPath, outputPath := args[0], args[1], args[2]
 
 	log.Println("Loading tree...")
-	f, err := os.Open(inputPath)
-	essentials.Must(err)
-	tree, err := treed.ReadBoundedSolidTree(f)
-	f.Close()
+	tree, err := treed.Load(inputPath, treed.ReadBoundedSolidTree)
 	essentials.Must(err)
 
 	log.Println("Loading mesh...")
-	f, err = os.Open(meshPath)
-	essentials.Must(err)
-	tris, err := model3d.ReadSTL(f)
-	f.Close()
+	tris, err := treed.Load(meshPath, model3d.ReadSTL)
 	essentials.Must(err)
 	mesh := model3d.NewMeshTriangles(tris)
 	meshSolid := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
@@ -83,9 +77,5 @@ func main() {
 	)
 
 	log.Println("Saving tree...")
-	f, err = os.Create(outputPath)
-	essentials.Must(err)
-	err = treed.WriteBoundedSolidTree(f, tree)
-	f.Close()
-	essentials.Must(err)
+	essentials.Must(treed.Save(outputPath, tree, treed.WriteBoundedSolidTree))
 }

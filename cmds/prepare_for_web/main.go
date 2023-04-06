@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"math/rand"
 	"os"
@@ -31,24 +32,15 @@ func main() {
 	}
 
 	log.Println("Loading input tree...")
-	f, err := os.Open(modelPath)
-	essentials.Must(err)
-	model, err := treed.ReadBoundedSolidTree(f)
-	f.Close()
+	model, err := treed.Load(modelPath, treed.ReadBoundedSolidTree)
 	essentials.Must(err)
 
 	log.Println("Loading normal map...")
-	f, err = os.Open(modelPath)
-	essentials.Must(err)
-	normals, err := treed.ReadCoordTree(f)
-	f.Close()
+	normals, err := treed.Load(normalsPath, treed.ReadCoordTree)
 	essentials.Must(err)
 
 	log.Println("Loading mesh...")
-	f, err = os.Open(meshPath)
-	essentials.Must(err)
-	tris, err := model3d.ReadSTL(f)
-	f.Close()
+	tris, err := treed.Load(meshPath, model3d.ReadSTL)
 	essentials.Must(err)
 	mesh := model3d.NewMeshTriangles(tris)
 	meshSolid := model3d.NewColliderSolid(model3d.MeshToCollider(mesh))
@@ -105,11 +97,10 @@ func main() {
 	}
 
 	log.Println("Saving metadata...")
-	f, err = os.Create(filepath.Join(outputPath, "metadata.json"))
-	essentials.Must(err)
-	err = json.NewEncoder(f).Encode(metadata)
-	f.Close()
-	essentials.Must(err)
+	metadataPath := filepath.Join(outputPath, "metadata.json")
+	essentials.Must(treed.Save(metadataPath, metadata, func(w io.Writer, metadata *Metadata) error {
+		return json.NewEncoder(w).Encode(metadata)
+	}))
 }
 
 func WriteTree(path string, tree *treed.BoundedSolidTree) *TreeInfo {

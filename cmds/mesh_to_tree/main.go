@@ -63,10 +63,7 @@ func main() {
 	inputPath, outputPath := args[0], args[1]
 
 	log.Println("Creating mesh dataset...")
-	f, err := os.Open(inputPath)
-	essentials.Must(err)
-	inputTris, err := model3d.ReadSTL(f)
-	f.Close()
+	inputTris, err := treed.Load(inputPath, model3d.ReadSTL)
 	essentials.Must(err)
 	inputMesh := model3d.NewMeshTriangles(inputTris)
 	coll := model3d.MeshToCollider(inputMesh)
@@ -166,16 +163,12 @@ func main() {
 }
 
 func WriteTree(outputPath string, solid model3d.Solid, tree *treed.SolidTree) error {
-	f, err := os.Create(outputPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	return treed.WriteBoundedSolidTree(f, &treed.BoundedSolidTree{
+	boundedTree := &treed.BoundedSolidTree{
 		Min:  solid.Min(),
 		Max:  solid.Max(),
 		Tree: tree,
-	})
+	}
+	return treed.Save(outputPath, boundedTree, treed.WriteBoundedSolidTree)
 }
 
 func Dataset(
