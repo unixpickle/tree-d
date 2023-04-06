@@ -65,13 +65,12 @@ func main() {
 
 	offset := model.Max.Mid(model.Min).Scale(-1)
 	scale := 2 / model.Max.Sub(model.Min).Abs().MaxCoord()
-	model = model.Translate(offset).Scale(scale)
 	normals = normals.Translate(offset).Scale(scale)
 
 	metadata := &Metadata{
 		Normals: WriteNormals(filepath.Join(outputPath, "normals.bin"), normals),
 		LODs: []*TreeInfo{
-			WriteTree(filepath.Join(outputPath, "full.bin"), model),
+			WriteTree(filepath.Join(outputPath, "full.bin"), model.Translate(offset).Scale(scale)),
 		},
 	}
 
@@ -92,8 +91,11 @@ func main() {
 			)
 			model.Tree, _ = model.Tree.Replace(rep.Replace, rep.With)
 		}
-		lodPath := filepath.Join(outputPath, fmt.Sprintf("lod_%d.bin", lod))
-		metadata.LODs = append(metadata.LODs, WriteTree(lodPath, model))
+		lodPath := filepath.Join(outputPath, fmt.Sprintf("lod_%d.bin", model.Tree.NumLeaves()))
+		metadata.LODs = append(
+			metadata.LODs,
+			WriteTree(lodPath, model.Translate(offset).Scale(scale)),
+		)
 	}
 
 	log.Println("Saving metadata...")
@@ -112,7 +114,8 @@ func WriteTree(path string, tree *treed.BoundedSolidTree) *TreeInfo {
 	essentials.Must(err)
 	return &TreeInfo{
 		NumLeaves: tree.Tree.NumLeaves(),
-		FileSize:  info.Size(),
+		Filename:  info.Name(),
+		Size:      info.Size(),
 	}
 }
 
@@ -125,16 +128,18 @@ func WriteNormals(path string, tree *treed.CoordTree) *TreeInfo {
 	essentials.Must(err)
 	return &TreeInfo{
 		NumLeaves: tree.NumLeaves(),
-		FileSize:  info.Size(),
+		Filename:  info.Name(),
+		Size:      info.Size(),
 	}
 }
 
 type Metadata struct {
-	Normals *TreeInfo   `json:"num_leaves"`
+	Normals *TreeInfo   `json:"normals"`
 	LODs    []*TreeInfo `json:"lods"`
 }
 
 type TreeInfo struct {
-	NumLeaves int   `json:"num_leaves"`
-	FileSize  int64 `json:"file_size"`
+	NumLeaves int    `json:"num_leaves"`
+	Filename  string `json:"filename"`
+	Size      int64  `json:"file_size"`
 }
