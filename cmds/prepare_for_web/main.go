@@ -75,7 +75,7 @@ func main() {
 	}
 
 	log.Println("Writing LODs...")
-	for _, lod := range []int{1024, 512, 256} {
+	for lod := 4096; lod >= 256; lod /= 2 {
 		numLeaves := model.Tree.NumLeaves()
 		if numLeaves <= lod {
 			continue

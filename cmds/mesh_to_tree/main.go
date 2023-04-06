@@ -34,15 +34,15 @@ func main() {
 	flag.Float64Var(&weightDecay, "weight-decay", 1e-4, "weight decay for SVM training")
 	flag.Float64Var(&momentum, "momentum", 0.9, "Nesterov momentum for SVM training")
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
-	flag.IntVar(&taoIters, "tao-iters", 10, "maximum iterations of TAO")
-	flag.IntVar(&depth, "depth", 6, "maximum tree depth")
+	flag.IntVar(&taoIters, "tao-iters", 50, "maximum iterations of TAO")
+	flag.IntVar(&depth, "depth", 20, "maximum tree depth")
 	flag.IntVar(&minLeafSize, "min-leaf-size", 5, "minimum samples per leaf for greedy trees")
-	flag.IntVar(&datasetSize, "dataset-size", 1000000, "number of points to sample for dataset")
+	flag.IntVar(&datasetSize, "dataset-size", 2000000, "number of points to sample for dataset")
 	flag.IntVar(&surfaceSamples, "surface-samples", 0,
 		"number of points to sample near the surface for the dataset")
 	flag.Float64Var(&surfaceEpsilon, "surface-epsilon", 0.01, "noise scale for sampling near surface")
 	flag.IntVar(&taoDatasetSize, "tao-dataset-size", 1000000, "number of points to sample for TAO")
-	flag.IntVar(&activeRebuilds, "active-rebuilds", 1,
+	flag.IntVar(&activeRebuilds, "active-rebuilds", 5,
 		"number of times to rebuild with active learning")
 	flag.IntVar(&activePoints, "active-points", 50000,
 		"number of points to sample for active learning steps")
