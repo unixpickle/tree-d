@@ -3,6 +3,7 @@ package treed
 import (
 	"encoding/binary"
 	"io"
+	"os"
 
 	"github.com/pkg/errors"
 	"github.com/unixpickle/model3d/model3d"
@@ -179,4 +180,23 @@ func readCoordBranchTree[T any](
 		LessThan:     left,
 		GreaterEqual: right,
 	}, nil
+}
+
+func Save[T any](path string, x T, fn func(io.Writer, T) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return fn(f, x)
+}
+
+func Load[T any](path string, fn func(io.Reader) (T, error)) (T, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		var zero T
+		return zero, err
+	}
+	defer f.Close()
+	return fn(f)
 }
