@@ -3,15 +3,7 @@
     const Vector = self.treed.Vector;
     const Matrix = self.treed.Matrix;
     const Camera = self.treed.Camera;
-
-    const MODELS = [
-        {
-            name: 'Corgi',
-            model: 'data/corgi.bin',
-            normals: 'data/corgi_normals.bin',
-            source: 'https://www.thingiverse.com/thing:2806745',
-        },
-    ]
+    const MODELS = self.treed.models;
 
     class App {
         constructor() {
@@ -20,7 +12,6 @@
                 alert(e);
             };
             this.canvas = document.getElementById('canvas');
-            this.matrix = Matrix.identity();
 
             this.normalsCheckbox = document.getElementById('use-normals');
             this.normalsCheckbox.onchange = (_) => {
@@ -28,6 +19,7 @@
             };
 
             this.modelPicker = document.getElementById('model-picker');
+            this.lodPicker = document.getElementById('lod-picker');
             this.modelLink = document.getElementById('model-link');
             MODELS.forEach((model, i) => {
                 const option = document.createElement('option');
@@ -38,27 +30,63 @@
             });
             this.modelPicker.value = MODELS[0].name;
             this.modelPicker.onchange = (_) => {
-                this.matrix = Matrix.identity();
-                this.modelLink.href = this.currentModel().source;
+                this.populateModelInfo();
+                this.matrix = this.initMatrix();
                 this.rerender();
             };
-            this.modelLink.href = this.currentModel().source;
+            this.lodPicker.onchange = (_) => this.rerender();
+            this.populateModelInfo();
 
             this.rerender();
             this.setupPointerEvents();
+        }
+
+        populateModelInfo() {
+            const model = this.currentModel();
+            this.matrix = this.initMatrix();
+            this.modelLink.href = model.source;
+            this.lodPicker.innerHTML = '';
+            model.metadata.lods.forEach((lod, i) => {
+                const option = document.createElement('option');
+                if (i === 0) {
+                    option.innerText = 'Full (' + lod['num_leaves'] + ' leaves)';
+                } else {
+                    option.innerText = lod['num_leaves'] + ' leaves';
+                }
+                option.value = model.path + '/' + lod.filename;
+                this.lodPicker.appendChild(option);
+                if (i === 0) {
+                    this.lodPicker.value = option.value;
+                }
+            });
         }
 
         currentModel() {
             return MODELS.filter((model) => model.name == this.modelPicker.value)[0];
         }
 
+        currentLodPath() {
+            return this.lodPicker.value;
+        }
+
+        initMatrix() {
+            return this.currentModel().initMatrix;
+        }
+
         camera() {
-            const mat = this.matrix;
+            return this.baseCamera().apply(this.matrix);
+        }
+
+        baseCamera() {
+            const initialPos = new Vector(0, 4, 0);
+            const z = initialPos.scale(-1).normalize();
+            const y = new Vector(0, 0, -1).projectOut(z).normalize();
+            const x = z.normalize().cross(y);
             return new Camera(
-                mat.apply(new Vector(0, 3, 0)),
-                mat.apply(new Vector(1, 0, 0)),
-                mat.apply(new Vector(0, 0, -1)),
-                mat.apply(new Vector(0, -1, 0)),
+                initialPos,
+                x,
+                y,
+                z,
                 0.69,
             );
         }
@@ -68,7 +96,8 @@
             const options = {
                 useNormals: this.normalsCheckbox.checked,
             };
-            this.renderer.request(model.model, model.normals, this.camera(), options);
+            const normalsPath = model.path + '/' + model.metadata.normals.filename;
+            this.renderer.request(this.currentLodPath(), normalsPath, this.camera(), options);
         }
 
         setupPointerEvents() {
