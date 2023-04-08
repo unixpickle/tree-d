@@ -194,14 +194,11 @@
     }
 
     class ChangePoint {
-        constructor(point, normal, t) {
+        constructor(point, normal, t, numChanges) {
             this.point = point;
             this.normal = normal;
             this.t = t;
-        }
-
-        addT(t) {
-            return new ChangePoint(this.point, this.normal, this.t + t);
+            this.numChanges = numChanges;
         }
     }
 
