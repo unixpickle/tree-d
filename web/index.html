@@ -26,6 +26,16 @@
                 <label for="use-normals" class="setting-label"> Render with normal map</label>
             </div>
 
+            <div class="setting">
+                <input type="checkbox" id="ray-heatmap" class="setting-check" name="ray-heatmap">
+                <label for="ray-heatmap" class="setting-label"> Ray crossing heatmap</label>
+            </div>
+
+            <div class="setting">
+                <input type="number" id="heatmap-max" class="setting-input" name="heatmap-max" value="32">
+                <label for="heatmap-max" class="setting-label"> Heatmap max value</label>
+            </div>
+
             <div id="canvas-container">
                 <canvas id="canvas" width="256" height="256"></canvas>
             </div>

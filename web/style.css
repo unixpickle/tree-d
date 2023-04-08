@@ -68,6 +68,11 @@ body {
     display: inline-block;
 }
 
+.setting-input {
+    width: 40px;
+    margin: 0 5px;
+}
+
 .setting-label {
     display: inline-block;
     vertical-align: top;

@@ -22,9 +22,12 @@
             this.canvas = document.getElementById('canvas');
 
             this.normalsCheckbox = document.getElementById('use-normals');
-            this.normalsCheckbox.onchange = (_) => {
-                this.rerender();
-            };
+            this.normalsCheckbox.onchange = (_) => this.rerender();
+
+            this.rayHeatmapCheckbox = document.getElementById('ray-heatmap');
+            this.rayHeatmapCheckbox.onchange = (_) => this.rerender();
+            this.rayHeatmapMax = document.getElementById('heatmap-max');
+            this.rayHeatmapMax.onchange = (_) => this.rerender();
 
             this.downloadButton = document.getElementById('download-button');
             this.downloadButton.addEventListener('click', () => this.download());
@@ -114,6 +117,7 @@
             const model = this.currentModel();
             const options = {
                 useNormals: this.normalsCheckbox.checked,
+                maxChanges: this.rayHeatmapCheckbox.checked ? this.rayHeatmapMax.value : null,
             };
             const normalsPath = model.path + '/' + model.metadata.normals.filename;
             renderer.request(this.currentLodPath(), normalsPath, this.camera(), options);

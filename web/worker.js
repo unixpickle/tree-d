@@ -7,6 +7,7 @@ importScripts(
 const Camera = self.treed.Camera;
 const fetchTree = self.treed.fetchTree;
 const renderTree = self.treed.renderTree;
+const renderTreeChanges = self.treed.renderTreeChanges;
 
 let canvas = null;
 let currentModel = null;
@@ -47,5 +48,9 @@ async function renderModel(modelPath, normalsPath, camera, options) {
         currentNormals = currentTransform(rawTree);
         currentNormalsPath = normalsPath;
     }
-    renderTree(canvas, camera, currentModel, options.useNormals ? currentNormals : null);
+    if (options.maxChanges) {
+        renderTreeChanges(canvas, camera, currentModel, options.maxChanges);
+    } else {
+        renderTree(canvas, camera, currentModel, options.useNormals ? currentNormals : null);
+    }
 }
