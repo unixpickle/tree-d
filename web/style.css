@@ -17,6 +17,38 @@ body {
 
 #canvas-container {
     margin-top: 10px;
+    position: relative;
+}
+
+#canvas-container.loading canvas {
+    visibility: hidden;
+}
+
+.loading::after {
+    content: ' ';
+    display: block;
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    left: calc(50% - 15px);
+    top: calc(50% - 15px);
+    background-image: url('loader.svg');
+    background-size: 100% 100%;
+
+    animation-name: rotate;
+    animation-duration: 1s;
+    animation-iteration-count: infinite;
+    animation-timing-function: linear;
+}
+
+@keyframes rotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .setting {
