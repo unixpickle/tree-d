@@ -26,6 +26,21 @@
         ctx.putImageData(imageData, 0, 0);
     }
 
+    function renderTreeChanges(canvas, camera, tree, maxChanges) {
+        const ctx = canvas.getContext('2d');
+        const imageData = ctx.createImageData(canvas.width, canvas.height);
+        camera.pixelRays(canvas.width).forEach((ray, i) => {
+            const [_, changes] = tree.castRayChanges(ray);
+            imageData.data[i * 4 + 3] = 255;
+            const brightness = Math.min(1.0, changes / maxChanges);
+            imageData.data[i * 4] = Math.floor(brightness * 255.999);
+            imageData.data[i * 4 + 1] = Math.floor((1 - brightness) * 255.49);
+            imageData.data[i * 4 + 2] = 128;
+        });
+        ctx.putImageData(imageData, 0, 0);
+    }
+
     self.treed['renderTree'] = renderTree;
+    self.treed['renderTreeChanges'] = renderTreeChanges;
 
 })();

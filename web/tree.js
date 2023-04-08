@@ -18,22 +18,27 @@
         }
 
         castRay(ray) {
+            return this.castRayChanges(ray)[0];
+        }
+
+        castRayChanges(ray) {
             const value = this.predict(ray.origin);
             let prevT = 0;
             let numChanges = 0;
             while (true) {
                 const internalChange = this._nextChange(ray);
                 if (internalChange === null) {
-                    return null;
+                    return [null, numChanges];
                 }
-                const change = internalChange.changePoint(ray, prevT, ++numChanges);
+                ++numChanges;
+                const change = internalChange.changePoint(ray, prevT);
 
                 // Notably, we could do this.predict() instead of using the branch
                 // which changed, and we might get more accurate results, but it is
                 // slower to do so in practice.
                 const newValue = internalChange.branch.predict(change.point);
                 if (newValue !== value) {
-                    return change;
+                    return [change, numChanges];
                 }
                 prevT += change.t;
                 ray = new Ray(change.point, ray.direction);
@@ -129,10 +134,10 @@
             this.maxT = maxT;
         }
 
-        changePoint(ray, addT, numChanges) {
+        changePoint(ray, addT) {
             const t = this._changeT(ray, this.t, this.maxT);
             const normal = this.branch.axis.normalize().scale(this.normalScale);
-            return new ChangePoint(ray.at(t), normal, t + addT, numChanges);
+            return new ChangePoint(ray.at(t), normal, t + addT);
         }
 
         _changeT(ray, minT, maxT) {
