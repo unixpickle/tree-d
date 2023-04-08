@@ -5,18 +5,29 @@
     const Camera = self.treed.Camera;
     const MODELS = self.treed.models;
 
+    const DL_RENDER_WIDTH = 1024;
+    const DL_RENDER_HEIGHT = 1024;
+
     class App {
         constructor() {
-            this.renderer = new Renderer();
+            this.renderer = new UIRenderer();
             this.renderer.onError = (e) => {
                 alert(e);
             };
+            this.downloadRenderer = new DownloadRenderer();
+            this.downloadRenderer.onError = (e) => {
+                alert(e);
+            }
+
             this.canvas = document.getElementById('canvas');
 
             this.normalsCheckbox = document.getElementById('use-normals');
             this.normalsCheckbox.onchange = (_) => {
                 this.rerender();
             };
+
+            this.downloadButton = document.getElementById('download-button');
+            this.downloadButton.addEventListener('click', () => this.download());
 
             this.modelPicker = document.getElementById('model-picker');
             this.lodPicker = document.getElementById('lod-picker');
@@ -92,12 +103,20 @@
         }
 
         rerender() {
+            this._requestRender(this.renderer);
+        }
+
+        download() {
+            this._requestRender(this.downloadRenderer);
+        }
+
+        _requestRender(renderer) {
             const model = this.currentModel();
             const options = {
                 useNormals: this.normalsCheckbox.checked,
             };
             const normalsPath = model.path + '/' + model.metadata.normals.filename;
-            this.renderer.request(this.currentLodPath(), normalsPath, this.camera(), options);
+            renderer.request(this.currentLodPath(), normalsPath, this.camera(), options);
         }
 
         setupPointerEvents() {
@@ -139,16 +158,15 @@
         return new Vector(e.clientX, 0, -e.clientY);
     }
 
-    class Renderer {
-        constructor() {
+    class RendererBase {
+        constructor(canvas) {
             this.worker = new Worker('worker.js');
-            this.container = document.getElementById('canvas-container');
 
             this.handlingRequest = false;
             this.nextRequest = null;
             this.lastModelPath = null;
             this.lastNormalsPath = null;
-            this.sendCanvas = document.getElementById('canvas').transferControlToOffscreen();
+            this.sendCanvas = canvas.transferControlToOffscreen();
 
             this.onError = (e) => null;
 
@@ -157,10 +175,7 @@
                 if (d['error']) {
                     this.onError(d.error);
                 } else {
-                    this.lastModelPath = d.modelPath;
-                    this.lastNormalsPath = d.normalsPath;
-                    this.handlingRequest = false;
-                    this._sendNext();
+                    this.handleResult(d);
                 }
             };
         }
@@ -178,25 +193,92 @@
         }
 
         _sendNext() {
-            this.container.classList.remove('loading');
             if (this.nextRequest === null) {
+                this.stopLoading();
                 return;
             }
+
             if (this.nextRequest.modelPath !== this.lastModelPath ||
                 this.nextRequest.normalsPath !== this.lastNormalsPath) {
-                this.container.classList.add('loading');
+                this.startLoading();
+            } else {
+                this.stopLoading();
             }
+
             this.worker.postMessage({
                 modelPath: this.nextRequest.modelPath,
                 normalsPath: this.nextRequest.normalsPath,
                 camera: this.nextRequest.camera.dump(),
                 options: this.nextRequest.options,
+                returnImage: this.returnImage(),
                 canvas: this.sendCanvas,
             }, this.sendCanvas ? [this.sendCanvas] : []);
             this.handlingRequest = true;
             this.nextRequest = null;
             this.sendCanvas = null;
         }
+
+        returnImage() {
+            return false;
+        }
+
+        handleResult(d) {
+            this.lastModelPath = d.modelPath;
+            this.lastNormalsPath = d.normalsPath;
+            this.handlingRequest = false;
+            this._sendNext();
+        }
+
+        startLoading() {
+        }
+
+        stopLoading() {
+        }
+    }
+
+    class UIRenderer extends RendererBase {
+        constructor() {
+            super(document.getElementById('canvas'));
+            this.container = document.getElementById('canvas-container');
+        }
+
+        startLoading() {
+            this.container.classList.add('loading');
+        }
+
+        stopLoading() {
+            this.container.classList.remove('loading');
+        }
+    }
+
+    class DownloadRenderer extends RendererBase {
+        constructor() {
+            const canvas = document.createElement('canvas');
+            canvas.width = DL_RENDER_WIDTH;
+            canvas.height = DL_RENDER_HEIGHT;
+            super(canvas);
+        }
+
+        returnImage() {
+            return true;
+        }
+
+        handleResult(d) {
+            super.handleResult(d);
+            downloadBlob(d.image, 'rendered_tree.png');
+        }
+    }
+
+    function downloadBlob(blob, filename) {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        document.body.appendChild(a);
+        a.style.display = 'none';
+        a.href = url;
+        a.download = filename;
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
     }
 
     window.app = new App();

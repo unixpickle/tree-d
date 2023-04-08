@@ -19,11 +19,14 @@ onmessage = (event) => {
     const d = event.data;
     canvas = d.canvas || canvas;
     renderModel(d.modelPath, d.normalsPath, Camera.undump(d.camera), d.options).then((_) => {
+        return d.returnImage ? canvas.convertToBlob() : null;
+    }).then((image) => {
         postMessage({
             modelPath: d.modelPath,
             normalsPath: d.normalsPath,
             camera: d.camera,
             options: d.options,
+            image: image,
         });
     }).catch((e) => {
         postMessage({ error: e.toString() });
