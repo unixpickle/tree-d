@@ -12,6 +12,10 @@ import (
 
 const DefaultHitAndRunEpsilon = 1e-5
 
+type PolytopeSampler[F constraints.Float, C Coord[F, C]] interface {
+	Sample(r *rand.Rand, p Polytope[F, C], init C) C
+}
+
 // A HitAndRunSampler samples coordinates within polytopes using hit and run
 // sampling.
 type HitAndRunSampler[F constraints.Float, C Coord[F, C]] struct {
