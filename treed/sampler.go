@@ -103,6 +103,28 @@ type Inequality[F constraints.Float, C Coord[F, C]] struct {
 // A Polytope is a union of linear half-spaces.
 type Polytope[F constraints.Float, C Coord[F, C]] []Inequality[F, C]
 
+// NewPolytopeBounds creates a polytope for the 3D bounds.
+func NewPolytopeBounds(min, max model3d.Coord3D) Polytope[float64, model3d.Coord3D] {
+	var res Polytope[float64, model3d.Coord3D]
+	for axis := 0; axis < 3; axis++ {
+		var axCoordArr [3]float64
+		axCoordArr[axis] = 1
+		axCoord := model3d.NewCoord3DArray(axCoordArr)
+		res = append(
+			res,
+			Inequality[float64, model3d.Coord3D]{
+				Axis: axCoord,
+				Max:  max.Array()[axis],
+			},
+			Inequality[float64, model3d.Coord3D]{
+				Axis: axCoord.Scale(-1),
+				Max:  -min.Array()[axis],
+			},
+		)
+	}
+	return res
+}
+
 // Cast shoots a ray in the positive and negative direction, and returns the
 // lowest magnitude scales for collisions with the bounds of the polytope in
 // both directions, assuming that the origin is within the polytope.

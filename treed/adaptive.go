@@ -5,10 +5,9 @@ import (
 	"math/rand"
 
 	"github.com/unixpickle/essentials"
+	"github.com/unixpickle/model3d/model3d"
 	"golang.org/x/exp/constraints"
 )
-
-const DefaultAdaptiveGreedyTreeSampleIters = 20
 
 type AxisSchedule[F constraints.Float, C Coord[F, C]] interface {
 	Init() []C
@@ -16,6 +15,25 @@ type AxisSchedule[F constraints.Float, C Coord[F, C]] interface {
 }
 
 type ConstantAxisSchedule[F constraints.Float, C Coord[F, C]] []C
+
+func NewConstantAxisScheduleIcosphere(splits int) ConstantAxisSchedule[float64, model3d.Coord3D] {
+	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, splits).VertexSlice()
+
+	// Remove redundant directions.
+	for i := 0; i < len(axes); i++ {
+		minDot := math.Inf(1)
+		for j := 0; j < i; j++ {
+			minDot = math.Min(minDot, math.Abs(axes[i].Dot(axes[j])))
+		}
+		if minDot > 0.9999 {
+			axes[i] = axes[len(axes)-1]
+			axes = axes[:len(axes)-1]
+			i--
+		}
+	}
+
+	return axes
+}
 
 func (c ConstantAxisSchedule[F, C]) Init() []C {
 	return c
@@ -137,7 +155,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		sampler,
 		minSamples,
 		concurrency,
-		maxDepth,
+		maxDepth-1,
 	)
 	t2 := adaptiveGreedyTree(
 		axisSchedule,
@@ -149,7 +167,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		sampler,
 		minSamples,
 		concurrency,
-		maxDepth,
+		maxDepth-1,
 	)
 	return &Tree[F, C, T]{
 		Axis:         bestAxis,
