@@ -18,10 +18,11 @@ type ConstantAxisSchedule[F constraints.Float, C Coord[F, C]] []C
 
 func NewConstantAxisScheduleIcosphere(splits int) ConstantAxisSchedule[float64, model3d.Coord3D] {
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, splits).VertexSlice()
+	axes = append(axes, model3d.X(1), model3d.Y(1), model3d.Z(1))
 
 	// Remove redundant directions.
 	for i := 0; i < len(axes); i++ {
-		minDot := math.Inf(1)
+		minDot := 0.0
 		for j := 0; j < i; j++ {
 			minDot = math.Min(minDot, math.Abs(axes[i].Dot(axes[j])))
 		}
@@ -110,6 +111,12 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		coords, targets = newCoords, newTargets
 	}
 
+	if maxDepth == 0 {
+		return &Tree[F, C, T]{
+			Leaf: loss.Predict(NewListSlice(targets)),
+		}
+	}
+
 	axes := axisSchedule.Init()
 	var bestSplit splitResult
 	var bestThreshold F
@@ -120,7 +127,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 			coords,
 			targets,
 			loss,
-			concurrency,
+			1,
 		)
 		if split.Index == 0 || split.Index == len(coords) {
 			break
@@ -144,7 +151,16 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		Inequality[F, C]{Axis: bestAxis, Max: bestThreshold},
 	)
 	p2 := append(bounds, Inequality[F, C]{Axis: bestAxis.Scale(-1), Max: -bestThreshold})
+
+	sortedCoords := append([]C{}, coords...)
+	essentials.VoodooSort(sortedCoords, func(i, j int) bool {
+		return sortedCoords[i].Dot(bestAxis) < sortedCoords[j].Dot(bestAxis)
+	})
+
 	n := Partition(bestAxis, bestThreshold, coords, targets)
+	if n != bestSplit.Index {
+		panic("inconsistent split should not be possible")
+	}
 	t1 := adaptiveGreedyTree(
 		axisSchedule,
 		p1,
@@ -202,18 +218,16 @@ func greedySearchSingle[F constraints.Float, C Coord[F, C], T any](
 				return localDots[i] < localDots[j]
 			}, localTargets, localCoords)
 			res := loss.MinimumSplit(NewListSlice(localTargets), NewListSlice(localDots))
-			if res.Loss < localBest.Loss {
+			if res.Loss < localBest.Loss && res.Index != 0 && res.Index != len(localCoords) {
 				localBest = splitResult{SplitInfo: res, Axis: i}
 				v1 := localDots[res.Index-1]
 				v2 := localDots[res.Index]
-				if v1 == v2 {
-					panic("split should not exist at equal values")
-				}
-				localThreshold = (v1 + v2) / 2
+				localThreshold = midpoint(v1, v2)
 			}
 		}
 		reduce := func() {
-			if localBest.Loss < best.Loss {
+			if localBest.Loss < best.Loss && localBest.Index != 0 &&
+				localBest.Index != len(localCoords) {
 				best = localBest
 				bestThreshold = localThreshold
 			}

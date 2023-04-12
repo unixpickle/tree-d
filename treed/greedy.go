@@ -129,7 +129,7 @@ func (g *greedySearchState[F, C, T]) Build(maxDepth int) *Tree[F, C, T] {
 	if v1 == v2 {
 		panic("split should not exist at equal values")
 	}
-	threshold := (v1 + v2) / 2
+	threshold := midpoint(v1, v2)
 
 	split := g.IntoSplit(bestResult.Axis, bestResult.Index)
 	left := split[0].Build(maxDepth - 1)
