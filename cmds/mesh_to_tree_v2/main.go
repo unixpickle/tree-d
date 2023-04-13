@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/unixpickle/essentials"
 	"github.com/unixpickle/model3d/model3d"
@@ -19,7 +21,7 @@ func main() {
 	var minDatasetSize int
 	var axisResolution int
 	var mutationCount int
-	var mutationStddev float64
+	var mutationStddev flagFloats = []float64{0.025, 0.01}
 	var hitAndRunIterations int
 	var verbose bool
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
@@ -31,7 +33,7 @@ func main() {
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.IntVar(&mutationCount, "mutation-count", 30, "number of mutation directions")
-	flag.Float64Var(&mutationStddev, "mutation-stddev", 0.1, "scale of mutations")
+	flag.Var(&mutationStddev, "mutation-stddev", "scale of mutations")
 	flag.IntVar(&hitAndRunIterations, "hit-and-run-iterations", 20,
 		"minimum dataset size at leaves")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -55,10 +57,14 @@ func main() {
 	coords, labels := SolidDataset(solid, initDatasetSize)
 
 	log.Println("Building initial tree...")
+	mutationCounts := make([]int, len(mutationStddev))
+	for i := range mutationStddev {
+		mutationCounts[i] = mutationCount
+	}
 	axisSchedule := &treed.MutationAxisSchedule[float64, model3d.Coord3D]{
 		Initial: treed.NewConstantAxisScheduleIcosphere(axisResolution).Init(),
-		Counts:  []int{mutationCount},
-		Stddevs: []float64{mutationStddev},
+		Counts:  mutationCounts,
+		Stddevs: mutationStddev,
 	}
 	greedyLoss := treed.EntropySplitLoss[float64]{MinCount: minLeafSize}
 	tree := treed.AdaptiveGreedyTree[float64, model3d.Coord3D, bool](
@@ -109,4 +115,27 @@ func SolidDataset(solid model3d.Solid, numPoints int) (points []model3d.Coord3D,
 	})
 
 	return
+}
+
+type flagFloats []float64
+
+func (i *flagFloats) String() string {
+	parts := make([]string, len(*i))
+	for j, x := range *i {
+		parts[j] = strconv.FormatFloat(x, 'f', 0, 64)
+	}
+	return strings.Join(parts, ",")
+}
+
+func (i *flagFloats) Set(value string) error {
+	var res []float64
+	for _, part := range strings.Split(value, ",") {
+		parsed, err := strconv.ParseFloat(part, 64)
+		if err != nil {
+			return fmt.Errorf("unexpected part %q: %w", part, err)
+		}
+		res = append(res, parsed)
+	}
+	*i = res
+	return nil
 }

@@ -166,13 +166,13 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 			1,
 		)
 		if split.Index == 0 || split.Index == len(coords) {
-			break
+			if i == 0 {
+				break
+			}
 		} else if i == 0 || split.Loss < bestSplit.Loss {
 			bestSplit = split
 			bestAxis = axes[split.Axis]
 			bestThreshold = threshold
-		} else {
-			break
 		}
 		axes = axisSchedule.Next(i, bestAxis)
 	}
