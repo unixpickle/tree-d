@@ -18,6 +18,8 @@ func main() {
 	var initDatasetSize int
 	var minDatasetSize int
 	var axisResolution int
+	var mutationCount int
+	var mutationStddev float64
 	var hitAndRunIterations int
 	var verbose bool
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
@@ -28,6 +30,8 @@ func main() {
 	flag.IntVar(&minDatasetSize, "min-dataset-size", 1000, "minimum dataset size at leaves")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
+	flag.IntVar(&mutationCount, "mutation-count", 30, "number of mutation directions")
+	flag.Float64Var(&mutationStddev, "mutation-stddev", 0.1, "scale of mutations")
 	flag.IntVar(&hitAndRunIterations, "hit-and-run-iterations", 20,
 		"minimum dataset size at leaves")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
@@ -51,7 +55,11 @@ func main() {
 	coords, labels := SolidDataset(solid, initDatasetSize)
 
 	log.Println("Building initial tree...")
-	axisSchedule := treed.NewConstantAxisScheduleIcosphere(axisResolution)
+	axisSchedule := &treed.MutationAxisSchedule[float64, model3d.Coord3D]{
+		Initial: treed.NewConstantAxisScheduleIcosphere(axisResolution).Init(),
+		Counts:  []int{mutationCount},
+		Stddevs: []float64{mutationStddev},
+	}
 	greedyLoss := treed.EntropySplitLoss[float64]{MinCount: minLeafSize}
 	tree := treed.AdaptiveGreedyTree[float64, model3d.Coord3D, bool](
 		axisSchedule,

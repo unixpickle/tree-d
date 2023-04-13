@@ -59,6 +59,13 @@ func (h *HitAndRunSampler[F, C]) Sample(r *rand.Rand, p Polytope[F, C], init C) 
 }
 
 func (h *HitAndRunSampler[F, C]) randDir() func(r *rand.Rand) C {
+	if h.RandDirection != nil {
+		return h.RandDirection
+	}
+	return directionSampler[F, C]()
+}
+
+func directionSampler[F constraints.Float, C Coord[F, C]]() func(r *rand.Rand) C {
 	var zero C
 	var x interface{} = zero
 	switch zero := x.(type) {

@@ -44,6 +44,42 @@ func (c ConstantAxisSchedule[F, C]) Next(stage int, axis C) []C {
 	return nil
 }
 
+type MutationAxisSchedule[F constraints.Float, C Coord[F, C]] struct {
+	Initial []C
+	Counts  []int
+	Stddevs []float64
+
+	// RandDirection generates random directions of type C.
+	// This needn't be passed if C is model3d.Coord2D or model3d.Coord3D.
+	RandDirection func(r *rand.Rand) C
+}
+
+func (m *MutationAxisSchedule[F, C]) Init() []C {
+	return m.Initial
+}
+
+func (m *MutationAxisSchedule[F, C]) Next(stage int, axis C) []C {
+	if stage >= len(m.Stddevs) {
+		return nil
+	}
+	rng := rand.New(rand.NewSource(rand.Int63()))
+	randDir := m.randDir()
+	stddev := m.Stddevs[stage]
+	res := make([]C, m.Counts[stage])
+	for i := range res {
+		res[i] = axis.Add(randDir(rng).Scale(F(rng.NormFloat64() * stddev)))
+		res[i] = res[i].Scale(1 / res[i].Norm())
+	}
+	return res
+}
+
+func (m *MutationAxisSchedule[F, C]) randDir() func(r *rand.Rand) C {
+	if m.RandDirection != nil {
+		return m.RandDirection
+	}
+	return directionSampler[F, C]()
+}
+
 // AdaptiveGreedyTree is like GreedyTree(), except that it re-generates the
 // dataset at each branch according to an oracle.
 //
