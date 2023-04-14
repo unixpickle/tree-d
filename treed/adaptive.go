@@ -92,7 +92,7 @@ func AdaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	axisSchedule AxisSchedule[F, C],
 	bounds Polytope[F, C],
 	coords []C,
-	targets []T,
+	labels []T,
 	oracle func(c C) T,
 	loss SplitLoss[F, T],
 	sampler PolytopeSampler[F, C],
@@ -104,7 +104,7 @@ func AdaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		axisSchedule,
 		append(Polytope[F, C]{}, bounds...),
 		append([]C{}, coords...),
-		append([]T{}, targets...),
+		append([]T{}, labels...),
 		oracle,
 		loss,
 		sampler,
@@ -118,7 +118,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	axisSchedule AxisSchedule[F, C],
 	bounds Polytope[F, C],
 	coords []C,
-	targets []T,
+	labels []T,
 	oracle func(c C) T,
 	loss SplitLoss[F, T],
 	sampler PolytopeSampler[F, C],
@@ -132,8 +132,8 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	if len(coords) < minSamples {
 		newCoords := make([]C, minSamples)
 		copy(newCoords, coords)
-		newTargets := make([]T, minSamples)
-		copy(newTargets, targets)
+		newLabels := make([]T, minSamples)
+		copy(newLabels, labels)
 		n := len(newCoords) - len(coords)
 		essentials.StatefulConcurrentMap(concurrency, n, func() func(i int) {
 			gen := rand.New(rand.NewSource(rand.Int63()))
@@ -141,15 +141,15 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 				p := coords[gen.Intn(len(coords))]
 				c := sampler.Sample(gen, bounds, p)
 				newCoords[i+len(coords)] = c
-				newTargets[i+len(coords)] = oracle(c)
+				newLabels[i+len(coords)] = oracle(c)
 			}
 		})
-		coords, targets = newCoords, newTargets
+		coords, labels = newCoords, newLabels
 	}
 
 	if maxDepth == 0 {
 		return &Tree[F, C, T]{
-			Leaf: loss.Predict(NewListSlice(targets)),
+			Leaf: loss.Predict(NewListSlice(labels)),
 		}
 	}
 
@@ -161,7 +161,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		split, threshold := greedySearchSingle(
 			axes,
 			coords,
-			targets,
+			labels,
 			loss,
 			1,
 		)
@@ -178,7 +178,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	}
 	if bestSplit.Index == 0 || bestSplit.Index == len(coords) {
 		return &Tree[F, C, T]{
-			Leaf: loss.Predict(NewListSlice(targets)),
+			Leaf: loss.Predict(NewListSlice(labels)),
 		}
 	}
 
@@ -193,7 +193,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		return sortedCoords[i].Dot(bestAxis) < sortedCoords[j].Dot(bestAxis)
 	})
 
-	n := Partition(bestAxis, bestThreshold, coords, targets)
+	n := Partition(bestAxis, bestThreshold, coords, labels)
 	if n != bestSplit.Index {
 		panic("inconsistent split should not be possible")
 	}
@@ -201,7 +201,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		axisSchedule,
 		p1,
 		coords[:n],
-		targets[:n],
+		labels[:n],
 		oracle,
 		loss,
 		sampler,
@@ -213,7 +213,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		axisSchedule,
 		p2,
 		coords[n:],
-		targets[n:],
+		labels[n:],
 		oracle,
 		loss,
 		sampler,
@@ -232,7 +232,7 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 func greedySearchSingle[F constraints.Float, C Coord[F, C], T any](
 	axes []C,
 	coords []C,
-	targets []T,
+	labels []T,
 	loss SplitLoss[F, T],
 	concurrency int,
 ) (splitResult, F) {
@@ -243,7 +243,7 @@ func greedySearchSingle[F constraints.Float, C Coord[F, C], T any](
 		var localThreshold F
 
 		localCoords := append([]C{}, coords...)
-		localTargets := append([]T{}, targets...)
+		localLabels := append([]T{}, labels...)
 		localDots := make([]F, len(coords))
 		process := func(i int) {
 			axis := axes[i]
@@ -252,8 +252,8 @@ func greedySearchSingle[F constraints.Float, C Coord[F, C], T any](
 			}
 			essentials.VoodooSort(localDots, func(i, j int) bool {
 				return localDots[i] < localDots[j]
-			}, localTargets, localCoords)
-			res := loss.MinimumSplit(NewListSlice(localTargets), NewListSlice(localDots))
+			}, localLabels, localCoords)
+			res := loss.MinimumSplit(NewListSlice(localLabels), NewListSlice(localDots))
 			if res.Loss < localBest.Loss && res.Index != 0 && res.Index != len(localCoords) {
 				localBest = splitResult{SplitInfo: res, Axis: i}
 				v1 := localDots[res.Index-1]
