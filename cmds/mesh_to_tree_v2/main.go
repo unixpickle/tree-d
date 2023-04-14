@@ -82,11 +82,20 @@ func main() {
 		depth,
 	)
 
-	// log.Println("Simplifying tree...")
-	// oldCount := tree.NumLeaves()
-	// tree = tree.Simplify(coords, labels, treed.EqualityTAOLoss[bool]{})
-	// newCount := tree.NumLeaves()
-	// log.Printf(" => went from %d to %d leaves", oldCount, newCount)
+	log.Println("Validating...")
+	coords, labels = SolidDataset(solid, initDatasetSize)
+	var numCorrect int
+	for i, c := range coords {
+		if tree.Predict(c) == labels[i] {
+			numCorrect++
+		}
+	}
+	log.Printf(
+		"=> validation accuracy: %0.3f%% (%d/%d)",
+		100*float64(numCorrect)/float64(len(labels)),
+		numCorrect,
+		len(labels),
+	)
 
 	log.Println("Writing output...")
 	essentials.Must(WriteTree(outputPath, solid, tree))
