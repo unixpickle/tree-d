@@ -9,13 +9,31 @@ import (
 	"golang.org/x/exp/constraints"
 )
 
+// An AxisSchedule defines a progression of greedy search spaces for tree
+// building. For example, the initial search space may be broad and coarse,
+// and then subsequent search spaces may narrow in towards the previously
+// found best axis.
+//
+// See ConstantAxisSchedule and MutationAxisSchedule for examples.
 type AxisSchedule[F constraints.Float, C Coord[F, C]] interface {
+	// Init returns the initial space of directions to search.
 	Init() []C
+
+	// Next returns a follow-up space of directions to search, conditioned on
+	// the previous direction. The stage argument will begin at 0 and increment
+	// for every subsequent iteration. The search is complete when this returns
+	// an empty list.
 	Next(stage int, axis C) []C
 }
 
+// ConstantAxisSchedule is an AxisSchedule with only an initial search space
+// and no follow-up search directions.
 type ConstantAxisSchedule[F constraints.Float, C Coord[F, C]] []C
 
+// NewConstantAxisScheduleIcosphere creates a ConstantAxisSchedule based on the
+// vertices of a sub-divided icosphere.
+//
+// The splits argument determines the number of sub-divisions.
 func NewConstantAxisScheduleIcosphere(splits int) ConstantAxisSchedule[float64, model3d.Coord3D] {
 	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, splits).VertexSlice()
 	axes = append(axes, model3d.X(1), model3d.Y(1), model3d.Z(1))
@@ -44,9 +62,19 @@ func (c ConstantAxisSchedule[F, C]) Next(stage int, axis C) []C {
 	return nil
 }
 
+// MutationAxisSchedule starts off with an initial search space, and then adds
+// randomly scaled random directions to previously found best solutions to
+// iteratively narrow in on better directions.
 type MutationAxisSchedule[F constraints.Float, C Coord[F, C]] struct {
+	// Initial is the initial space of search directions.
 	Initial []C
-	Counts  []int
+
+	// Counts is the number of mutations for each subsequent search step.
+	Counts []int
+
+	// Stddevs is the stddev of the gaussian scale applied to the mutation
+	// directions for each subsequent search step. It can be seen as the
+	// mutation strength.
 	Stddevs []float64
 
 	// RandDirection generates random directions of type C.
@@ -88,6 +116,9 @@ func (m *MutationAxisSchedule[F, C]) randDir() func(r *rand.Rand) C {
 // At each iteration of building the tree, if there are fewer than minSamples
 // coordinates which fall under this branch of the tree, more samples will be
 // generated.
+//
+// The initial bounds of the decision surface should be passed via bounds.
+// This enables active learning to hone in one specific sub-spaces for branches.
 func AdaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	axisSchedule AxisSchedule[F, C],
 	bounds Polytope[F, C],
@@ -129,23 +160,15 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 	if len(coords) == 0 {
 		panic("need at least one point to generate more")
 	}
-	if len(coords) < minSamples {
-		newCoords := make([]C, minSamples)
-		copy(newCoords, coords)
-		newLabels := make([]T, minSamples)
-		copy(newLabels, labels)
-		n := len(newCoords) - len(coords)
-		essentials.StatefulConcurrentMap(concurrency, n, func() func(i int) {
-			gen := rand.New(rand.NewSource(rand.Int63()))
-			return func(i int) {
-				p := coords[gen.Intn(len(coords))]
-				c := sampler.Sample(gen, bounds, p)
-				newCoords[i+len(coords)] = c
-				newLabels[i+len(coords)] = oracle(c)
-			}
-		})
-		coords, labels = newCoords, newLabels
-	}
+	coords, labels = adaptiveResample(
+		bounds,
+		coords,
+		labels,
+		oracle,
+		sampler,
+		minSamples,
+		concurrency,
+	)
 
 	if maxDepth == 0 {
 		return &Tree[F, C, T]{
@@ -227,6 +250,35 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		LessThan:     t1,
 		GreaterEqual: t2,
 	}
+}
+
+func adaptiveResample[F constraints.Float, C Coord[F, C], T any](
+	bounds Polytope[F, C],
+	coords []C,
+	labels []T,
+	oracle func(C) T,
+	sampler PolytopeSampler[F, C],
+	minSamples int,
+	concurrency int,
+) ([]C, []T) {
+	if len(coords) >= minSamples {
+		return coords, labels
+	}
+	newCoords := make([]C, minSamples)
+	copy(newCoords, coords)
+	newLabels := make([]T, minSamples)
+	copy(newLabels, labels)
+	n := len(newCoords) - len(coords)
+	essentials.StatefulConcurrentMap(concurrency, n, func() func(i int) {
+		gen := rand.New(rand.NewSource(rand.Int63()))
+		return func(i int) {
+			p := coords[gen.Intn(len(coords))]
+			c := sampler.Sample(gen, bounds, p)
+			newCoords[i+len(coords)] = c
+			newLabels[i+len(coords)] = oracle(c)
+		}
+	})
+	return newCoords, newLabels
 }
 
 func greedySearchSingle[F constraints.Float, C Coord[F, C], T any](

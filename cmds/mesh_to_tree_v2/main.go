@@ -21,7 +21,7 @@ func main() {
 	var minDatasetSize int
 	var axisResolution int
 	var mutationCount int
-	var mutationStddev flagFloats = []float64{0.025, 0.01}
+	var mutationStddev flagFloats = []float64{0.025}
 	var hitAndRunIterations int
 	var verbose bool
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
@@ -33,7 +33,7 @@ func main() {
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.IntVar(&mutationCount, "mutation-count", 30, "number of mutation directions")
-	flag.Var(&mutationStddev, "mutation-stddev", "scale of mutations")
+	flag.Var(&mutationStddev, "mutation-stddev", "scale of mutations; may be comma-separated list")
 	flag.IntVar(&hitAndRunIterations, "hit-and-run-iterations", 20,
 		"minimum dataset size at leaves")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
