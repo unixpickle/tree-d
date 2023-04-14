@@ -194,11 +194,10 @@ func (r *rollingVariance[F, C]) Diff(a, b *rollingVariance[F, C]) {
 }
 
 func iterateSplitPoints[F comparable](thresholds List[F], f func(int)) {
-	nextAfter := nextAfterFn[F]()
 	var prevValue F
 	for i := 0; i < thresholds.Len; i++ {
 		x := thresholds.Get(i)
-		if i == 0 || (x != prevValue && (nextAfter == nil || x != nextAfter(prevValue))) {
+		if i == 0 || x != prevValue {
 			f(i)
 			prevValue = x
 		}
@@ -212,26 +211,7 @@ func midpoint[F constraints.Float](x, y F) F {
 	}
 	mid := (x + y) / 2
 	if mid <= x || mid >= y {
-		return nextAfterFn[F]()(x)
+		return y
 	}
 	return mid
-}
-
-func nextAfterFn[F any]() func(F) F {
-	var x interface{}
-	var y F
-	x = y
-	switch x.(type) {
-	case float64:
-		var res interface{} = func(x float64) float64 {
-			return math.Nextafter(x, math.Inf(1))
-		}
-		return res.(func(F) F)
-	case float32:
-		var res interface{} = func(x float32) float32 {
-			return math.Nextafter32(x, float32(math.Inf(1)))
-		}
-		return res.(func(F) F)
-	}
-	return nil
 }
