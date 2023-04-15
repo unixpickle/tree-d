@@ -35,6 +35,27 @@ type TAO[F constraints.Float, C Coord[F, C], T any] struct {
 
 	// Verbose, if true, enables printing during training.
 	Verbose bool
+
+	// The following flags are for adaptive resampling, which is disabled by
+	// default. Set MinSamples > 0 to enable adaptive resampling.
+
+	// MinSamples is the minimum number of samples to use at each level.
+	// If there are fewer samples than this, more are sampled using the bounds
+	// and oracle.
+	//
+	// If this is 0, then adaptive sampling is disabled.
+	MinSamples int
+
+	// Sampler is used to sample new points in a polytope.
+	// It is only used for adaptive sampling.
+	Sampler PolytopeSampler[F, C]
+
+	// Bounds is the initial bounds of the decision space.
+	// It is only used for adaptive resampling.
+	Bounds Polytope[F, C]
+
+	// Oracle is used to compute new labels for active sampling.
+	Oracle func(C) T
 }
 
 func (t *TAO[F, C, T]) Optimize(
@@ -44,15 +65,17 @@ func (t *TAO[F, C, T]) Optimize(
 ) TAOResult[F, C, T] {
 	coords = append([]C{}, coords...)
 	labels = append([]T{}, labels...)
+	bounds := append(Polytope[F, C]{}, t.Bounds...)
 	q := newForkQueue[TAOResult[F, C, T]](t.Concurrency)
 	return q.Run(func() TAOResult[F, C, T] {
-		return t.optimize(q, tree, coords, labels)
+		return t.optimize(q, tree, bounds, coords, labels)
 	})
 }
 
 func (t *TAO[F, C, T]) optimize(
 	queue *forkQueue[TAOResult[F, C, T]],
 	tree *Tree[F, C, T],
+	bounds Polytope[F, C],
 	coords []C,
 	labels []T,
 ) TAOResult[F, C, T] {
@@ -61,6 +84,16 @@ func (t *TAO[F, C, T]) optimize(
 			Tree: tree,
 		}
 	}
+
+	coords, labels = adaptiveResample(
+		bounds,
+		coords,
+		labels,
+		t.Oracle,
+		t.Sampler,
+		t.MinSamples,
+		1,
+	)
 
 	if tree.IsLeaf() {
 		return t.optimizeLeaf(tree, coords, labels)
@@ -73,10 +106,22 @@ func (t *TAO[F, C, T]) optimize(
 	splitIdx := Partition(tree.Axis, tree.Threshold, coords, labels)
 	leftResult, rightResult := queue.Fork(
 		func() TAOResult[F, C, T] {
-			return t.optimize(queue, tree.LessThan, coords[:splitIdx], labels[:splitIdx])
+			return t.optimize(
+				queue,
+				tree.LessThan,
+				bounds.Constrain(tree.Axis, tree.Threshold),
+				coords[:splitIdx],
+				labels[:splitIdx],
+			)
 		},
 		func() TAOResult[F, C, T] {
-			return t.optimize(queue, tree.GreaterEqual, coords[splitIdx:], labels[splitIdx:])
+			return t.optimize(
+				queue,
+				tree.GreaterEqual,
+				bounds.Constrain(tree.Axis.Scale(-1), -tree.Threshold),
+				coords[splitIdx:],
+				labels[splitIdx:],
+			)
 		},
 	)
 
