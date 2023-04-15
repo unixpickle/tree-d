@@ -130,6 +130,7 @@ func readSolidTree(r io.Reader) (*SolidTree, error) {
 	})
 }
 
+// ReadCoordTree reads the output written by WriteCoordTree.
 func ReadCoordTree(r io.Reader) (*CoordTree, error) {
 	res, err := readCoordBranchTree(r, func(r io.Reader) (model3d.Coord3D, error) {
 		var x [3]float32
@@ -183,6 +184,12 @@ func readCoordBranchTree[T any](
 	}, nil
 }
 
+// ReadMultiple calls fn repeatedly on the input stream until EOF is reached.
+//
+// It is assumed that fn does not rely on EOF itself, and can independently
+// determine when each object is done being read in the file.
+//
+// This will return zero objects if the file is empty.
 func ReadMultiple[T any](r io.Reader, fn func(io.Reader) (T, error)) ([]T, error) {
 	bufReader := bufio.NewReader(r)
 	var res []T
@@ -198,6 +205,7 @@ func ReadMultiple[T any](r io.Reader, fn func(io.Reader) (T, error)) ([]T, error
 	}
 }
 
+// Save opens the file and calls fn on it with the given argument.
 func Save[T any](path string, x T, fn func(io.Writer, T) error) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -207,6 +215,7 @@ func Save[T any](path string, x T, fn func(io.Writer, T) error) error {
 	return fn(f, x)
 }
 
+// SaveMultiple is like Save, but calls fn repeatedly for each argument.
 func SaveMultiple[T any](path string, xs []T, fn func(io.Writer, T) error) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -221,6 +230,7 @@ func SaveMultiple[T any](path string, xs []T, fn func(io.Writer, T) error) error
 	return nil
 }
 
+// Load opens a file for reading and calls fn on it, returning the result.
 func Load[T any](path string, fn func(io.Reader) (T, error)) (T, error) {
 	f, err := os.Open(path)
 	if err != nil {
@@ -231,6 +241,8 @@ func Load[T any](path string, fn func(io.Reader) (T, error)) (T, error) {
 	return fn(f)
 }
 
+// LoadMultiple is like Load, but uses ReadMultiple to load multiple objects
+// until EOF is reached.
 func LoadMultiple[T any](path string, fn func(io.Reader) (T, error)) ([]T, error) {
 	f, err := os.Open(path)
 	if err != nil {
