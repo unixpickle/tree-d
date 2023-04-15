@@ -133,7 +133,7 @@ func AdaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 ) *Tree[F, C, T] {
 	return adaptiveGreedyTree(
 		axisSchedule,
-		append(Polytope[F, C]{}, bounds...),
+		bounds,
 		append([]C{}, coords...),
 		append([]T{}, labels...),
 		oracle,
@@ -205,11 +205,8 @@ func adaptiveGreedyTree[F constraints.Float, C Coord[F, C], T any](
 		}
 	}
 
-	p1 := append(
-		append(Polytope[F, C]{}, bounds...),
-		Inequality[F, C]{Axis: bestAxis, Max: bestThreshold},
-	)
-	p2 := append(bounds, Inequality[F, C]{Axis: bestAxis.Scale(-1), Max: -bestThreshold})
+	p1 := bounds.Constrain(bestAxis, bestThreshold)
+	p2 := bounds.Constrain(bestAxis.Scale(-1), -bestThreshold)
 
 	sortedCoords := append([]C{}, coords...)
 	essentials.VoodooSort(sortedCoords, func(i, j int) bool {

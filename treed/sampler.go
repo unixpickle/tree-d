@@ -132,6 +132,10 @@ func NewPolytopeBounds(min, max model3d.Coord3D) Polytope[float64, model3d.Coord
 	return res
 }
 
+func (p Polytope[F, C]) Constrain(axis C, max F) Polytope[F, C] {
+	return append(append(Polytope[F, C]{}, p...), Inequality[F, C]{Axis: axis, Max: max})
+}
+
 // Cast shoots a ray in the positive and negative direction, and returns the
 // lowest magnitude scales for collisions with the bounds of the polytope in
 // both directions, assuming that the origin is within the polytope.
