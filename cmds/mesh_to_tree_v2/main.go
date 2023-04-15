@@ -14,7 +14,11 @@ import (
 )
 
 func main() {
+	var lr float64
+	var weightDecay float64
+	var momentum float64
 	var iters int
+	var taoIters int
 	var depth int
 	var minLeafSize int
 	var initDatasetSize int
@@ -24,7 +28,11 @@ func main() {
 	var mutationStddev flagFloats = []float64{0.025}
 	var hitAndRunIterations int
 	var verbose bool
+	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
+	flag.Float64Var(&weightDecay, "weight-decay", 1e-4, "weight decay for SVM training")
+	flag.Float64Var(&momentum, "momentum", 0.9, "Nesterov momentum for SVM training")
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
+	flag.IntVar(&taoIters, "tao-iters", 50, "maximum iterations of TAO")
 	flag.IntVar(&depth, "depth", 20, "maximum tree depth")
 	flag.IntVar(&minLeafSize, "min-leaf-size", 5, "minimum samples per leaf when splitting")
 	flag.IntVar(&initDatasetSize, "init-dataset-size", 50000,
@@ -67,35 +75,58 @@ func main() {
 		Stddevs: mutationStddev,
 	}
 	greedyLoss := treed.EntropySplitLoss[float64]{MinCount: minLeafSize}
+	sampler := &treed.HitAndRunSampler[float64, model3d.Coord3D]{
+		Iterations: hitAndRunIterations,
+	}
+	bounds := treed.NewPolytopeBounds(solid.Min(), solid.Max())
 	tree := treed.AdaptiveGreedyTree[float64, model3d.Coord3D, bool](
 		axisSchedule,
-		treed.NewPolytopeBounds(solid.Min(), solid.Max()),
+		bounds,
 		coords,
 		labels,
 		solid.Contains,
 		greedyLoss,
-		&treed.HitAndRunSampler[float64, model3d.Coord3D]{
-			Iterations: hitAndRunIterations,
-		},
+		sampler,
 		minDatasetSize,
 		0,
 		depth,
 	)
 
-	log.Println("Validating...")
-	coords, labels = SolidDataset(solid, initDatasetSize)
-	var numCorrect int
-	for i, c := range coords {
-		if tree.Predict(c) == labels[i] {
-			numCorrect++
-		}
+	testCoords, testLabels := SolidDataset(solid, initDatasetSize)
+
+	log.Println("Refining tree with TAO...")
+	tao := treed.TAO[float64, model3d.Coord3D, bool]{
+		Loss:        treed.EqualityTAOLoss[bool]{},
+		LR:          lr,
+		WeightDecay: weightDecay,
+		Momentum:    momentum,
+		Iters:       iters,
+		Verbose:     verbose,
+
+		// Adaptive dataset configuration.
+		MinSamples: minDatasetSize,
+		Sampler:    sampler,
+		Bounds:     bounds,
+		Oracle:     solid.Contains,
 	}
-	log.Printf(
-		"=> validation accuracy: %0.3f%% (%d/%d)",
-		100*float64(numCorrect)/float64(len(labels)),
-		numCorrect,
-		len(labels),
-	)
+	testLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
+	for i := 0; i < taoIters; i++ {
+		essentials.Must(WriteTree(outputPath, solid, tree))
+
+		result := tao.Optimize(tree, coords, labels)
+		if result.NewLoss >= result.OldLoss {
+			log.Printf("no improvement at iteration %d: loss=%f test_loss=%f", i, result.OldLoss,
+				testLoss)
+			break
+		}
+		newTestLoss := tao.EvaluateLoss(result.Tree, testCoords, testLabels)
+
+		log.Printf("TAO iteration %d: loss=%f->%f test_loss=%f->%f", i, result.OldLoss,
+			result.NewLoss, testLoss, newTestLoss)
+
+		testLoss = newTestLoss
+		tree = result.Tree
+	}
 
 	log.Println("Writing output...")
 	essentials.Must(WriteTree(outputPath, solid, tree))
