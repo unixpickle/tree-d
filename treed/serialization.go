@@ -1,6 +1,7 @@
 package treed
 
 import (
+	"bufio"
 	"encoding/binary"
 	"io"
 	"os"
@@ -182,6 +183,21 @@ func readCoordBranchTree[T any](
 	}, nil
 }
 
+func ReadMultiple[T any](r io.Reader, fn func(io.Reader) (T, error)) ([]T, error) {
+	bufReader := bufio.NewReader(r)
+	var res []T
+	for {
+		if _, err := bufReader.Peek(1); errors.Is(err, io.EOF) {
+			return res, nil
+		}
+		x, err := fn(bufReader)
+		if err != nil {
+			return res, err
+		}
+		res = append(res, x)
+	}
+}
+
 func Save[T any](path string, x T, fn func(io.Writer, T) error) error {
 	f, err := os.Create(path)
 	if err != nil {
@@ -189,6 +205,20 @@ func Save[T any](path string, x T, fn func(io.Writer, T) error) error {
 	}
 	defer f.Close()
 	return fn(f, x)
+}
+
+func SaveMultiple[T any](path string, xs []T, fn func(io.Writer, T) error) error {
+	f, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	for _, x := range xs {
+		if err := fn(f, x); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func Load[T any](path string, fn func(io.Reader) (T, error)) (T, error) {
@@ -199,4 +229,14 @@ func Load[T any](path string, fn func(io.Reader) (T, error)) (T, error) {
 	}
 	defer f.Close()
 	return fn(f)
+}
+
+func LoadMultiple[T any](path string, fn func(io.Reader) (T, error)) ([]T, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		var zero []T
+		return zero, err
+	}
+	defer f.Close()
+	return ReadMultiple(f, fn)
 }
