@@ -13,6 +13,7 @@ import (
 
 func main() {
 	var datasetSize int
+	var numTrees int
 	var depth int
 	var taoIters int
 	var lr float64
@@ -23,6 +24,7 @@ func main() {
 	var axisResolution int
 	var verbose bool
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "dataset size for surface")
+	flag.IntVar(&numTrees, "num-trees", 3, "number of trees in ensemble")
 	flag.IntVar(&depth, "max-depth", 8, "maximum tree depth")
 	flag.IntVar(&taoIters, "tao-iters", 5, "maximum number of TAO iterations")
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
@@ -75,9 +77,58 @@ func main() {
 		return
 	}
 	inputs, targets := sampleDataset()
+	testInputs, testTargets := sampleDataset()
 
+	var trees []*treed.CoordTree
+	for i := 0; i < numTrees; i++ {
+		log.Printf("Creating tree %d/%d ...", i+1, numTrees)
+		tree := BuildTree(
+			inputs,
+			targets,
+			testInputs,
+			testTargets,
+			axisResolution,
+			depth,
+			minLeafSize,
+			lr,
+			weightDecay,
+			momentum,
+			iters,
+			taoIters,
+			verbose,
+		)
+		trees = append(trees, tree)
+
+		getResidual := func(t *treed.CoordTree, inputs, targets []model3d.Coord3D) {
+			for i, x := range inputs {
+				targets[i] = targets[i].Sub(t.Predict(x))
+			}
+		}
+		getResidual(tree, inputs, targets)
+		getResidual(tree, testInputs, testTargets)
+	}
+
+	log.Println("Writing output...")
+	essentials.Must(treed.SaveMultiple(outputPath, trees, treed.WriteCoordTree))
+}
+
+func BuildTree(
+	inputs []model3d.Coord3D,
+	targets []model3d.Coord3D,
+	testInputs []model3d.Coord3D,
+	testTargets []model3d.Coord3D,
+	axisResolution int,
+	depth int,
+	minLeafSize int,
+	lr float64,
+	weightDecay float64,
+	momentum float64,
+	iters int,
+	taoIters int,
+	verbose bool,
+) *treed.CoordTree {
 	log.Println("Building greedy tree...")
-	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
+	axes := treed.NewConstantAxisScheduleIcosphere(axisResolution).Init()
 	tree := treed.GreedyTree[float64, model3d.Coord3D, model3d.Coord3D](
 		axes,
 		inputs,
@@ -88,7 +139,6 @@ func main() {
 	)
 
 	log.Println("Performing TAO...")
-	testCoords, testLabels := sampleDataset()
 	tao := treed.TAO[float64, model3d.Coord3D, model3d.Coord3D]{
 		Loss:        treed.SquaredErrorTAOLoss[float64, model3d.Coord3D]{},
 		LR:          lr,
@@ -97,16 +147,15 @@ func main() {
 		Iters:       iters,
 		Verbose:     verbose,
 	}
-	testLoss := tao.EvaluateLoss(tree, testCoords, testLabels)
+	testLoss := tao.EvaluateLoss(tree, testInputs, testTargets)
 	for i := 0; i < taoIters; i++ {
-		essentials.Must(WriteTree(outputPath, tree))
 		result := tao.Optimize(tree, inputs, targets)
 		if result.NewLoss >= result.OldLoss {
 			log.Printf("no improvement at iteration %d: loss=%f test_loss=%f", i, result.OldLoss,
 				testLoss)
 			break
 		}
-		newTestLoss := tao.EvaluateLoss(result.Tree, testCoords, testLabels)
+		newTestLoss := tao.EvaluateLoss(result.Tree, testInputs, testTargets)
 
 		log.Printf("TAO iteration %d: loss=%f->%f test_loss=%f->%f", i, result.OldLoss,
 			result.NewLoss, testLoss, newTestLoss)
@@ -115,27 +164,11 @@ func main() {
 		tree = result.Tree
 	}
 
-	tree = treed.MapLeaves(tree, func(c model3d.Coord3D) model3d.Coord3D {
-		norm := c.Norm()
-		if norm != 0 {
-			return c.Scale(1 / norm)
-		} else {
-			// Arbitrary normal for null leaf.
-			log.Println("Warning: produced leaf with zero norm.")
-			return model3d.XYZ(1, 0, 0)
-		}
-	})
-
 	log.Println("Simplifying tree...")
 	oldCount := tree.NumLeaves()
 	tree = tree.Simplify(inputs, targets, tao.Loss)
 	newCount := tree.NumLeaves()
 	log.Printf(" => went from %d to %d leaves", oldCount, newCount)
 
-	log.Println("Writing output...")
-	essentials.Must(WriteTree(outputPath, tree))
-}
-
-func WriteTree(outputPath string, tree *treed.CoordTree) error {
-	return treed.Save(outputPath, tree, treed.WriteCoordTree)
+	return tree
 }
