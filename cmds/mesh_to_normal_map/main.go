@@ -13,6 +13,7 @@ import (
 
 func main() {
 	var datasetSize int
+	var datasetEpsilon float64
 	var numTrees int
 	var depth int
 	var taoIters int
@@ -24,6 +25,7 @@ func main() {
 	var axisResolution int
 	var verbose bool
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "dataset size for surface")
+	flag.Float64Var(&datasetEpsilon, "dataset-epsilon", 1e-4, "noise to add to input points")
 	flag.IntVar(&numTrees, "num-trees", 3, "number of trees in ensemble")
 	flag.IntVar(&depth, "max-depth", 8, "maximum tree depth")
 	flag.IntVar(&taoIters, "tao-iters", 5, "maximum number of TAO iterations")
@@ -69,9 +71,12 @@ func main() {
 
 	log.Println("Sampling dataset...")
 	sampleDataset := func() (inputs, targets []model3d.Coord3D) {
+		meshScale := meshField.Min().Dist(meshField.Max())
+		noiseScale := meshScale * datasetEpsilon
 		inputs = treed.SampleDecisionBoundaryCast(solidTree, datasetSize, 0)
 		targets = make([]model3d.Coord3D, len(inputs))
 		essentials.ConcurrentMap(0, len(inputs), func(i int) {
+			inputs[i] = inputs[i].Add(model3d.NewCoord3DRandNorm().Scale(noiseScale))
 			targets[i], _ = meshField.NormalSDF(inputs[i])
 		})
 		return
