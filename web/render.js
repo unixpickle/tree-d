@@ -1,3 +1,5 @@
+const Vector = self.treed['Vector'];
+
 (function () {
 
     const AMBIENT = 0.4;
@@ -12,7 +14,10 @@
             const result = tree.castRay(ray);
             imageData.data[i * 4 + 3] = 255;
             if (result !== null) {
-                const normal = normalMap ? normalMap.predict(result.point) : result.normal;
+                const normal = normalMap === null ? result.normal : normalMap.reduce(
+                    (acc, cur) => acc.add(cur.predict(result.point)),
+                    Vector.zero(),
+                );
                 const diffuse = Math.abs(lightDir.dot(normal));
                 const refDot = Math.abs(normal.reflect(ray.direction).dot(lightDir));
                 const specular = Math.pow(refDot, 10);

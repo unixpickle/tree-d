@@ -158,7 +158,7 @@
 
             // Binary search for rare case.
             if (axis.dot(ray.at(maxT)) < threshold == orig) {
-                throw Error("impossible situation encountered: collision was expected");
+                throw new Error("impossible situation encountered: collision was expected");
             }
             for (let i = 0; i < 32; ++i) {
                 const midT = (minT + maxT) / 2;
@@ -184,7 +184,7 @@
 
         next() {
             if (this.done()) {
-                throw Error('out of bounds read');
+                throw new Error('out of bounds read');
             }
             return this.arr[this.offset++];
         }
@@ -197,7 +197,7 @@
         }
     }
 
-    async function fetchTree(url, treeType) {
+    async function fetchTrees(url, treeType) {
         let readFn;
         if (treeType === 'bool') {
             readFn = readBoolTree;
@@ -206,10 +206,18 @@
         } else if (treeType === 'bounded') {
             readFn = readBoundedSolidTree;
         } else {
-            throw Error('unsupported tree type: ' + treeType);
+            throw new Error('unsupported tree type: ' + treeType);
         }
         const buf = await (await fetch(url)).arrayBuffer();
-        return readFn(new FloatReader(buf));
+        const reader = new FloatReader(buf);
+        if (reader.done()) {
+            throw new Error('file is empty');
+        }
+        let result = [];
+        while (!reader.done()) {
+            result.push(readFn(reader));
+        }
+        return result;
     }
 
     function readBoolTree(floatReader) {
@@ -274,6 +282,6 @@
 
     self.treed['Branch'] = Branch;
     self.treed['Leaf'] = Leaf;
-    self.treed['fetchTree'] = fetchTree;
+    self.treed['fetchTrees'] = fetchTrees;
 
 })();
