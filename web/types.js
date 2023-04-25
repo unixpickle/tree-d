@@ -64,6 +64,19 @@
             return c1.add(n.scale(-2 * n.dot(c1))).scale(-1);
         }
 
+        projectOut(c1) {
+            const normed = c1.normalize()
+            return this.sub(normed.scale(normed.dot(this)));
+        }
+
+        cross(c1) {
+            return new Vector(
+                this.y * c1.z - this.z * c1.y,
+                this.z * c1.x - this.x * c1.z,
+                this.x * c1.y - this.y * c1.x,
+            );
+        }
+
         absMax() {
             return Math.max(Math.abs(this.x), Math.abs(this.y), Math.abs(this.z));
         }
@@ -242,6 +255,16 @@
                 }
             }
             return result;
+        }
+
+        apply(m) {
+            return new Camera(
+                m.apply(this.origin),
+                m.apply(this.x),
+                m.apply(this.y),
+                m.apply(this.z),
+                this.fov,
+            );
         }
     }
 
