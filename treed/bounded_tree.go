@@ -29,6 +29,29 @@ func (b *BoundedTree[F, C, T]) Translate(c C) *BoundedTree[F, C, T] {
 	}
 }
 
+// AsTree embeds the bounds into the tree and returns the resulting tree.
+//
+// The given zero argument will be returned from leaf nodes outside the bounds.
+//
+// Requires that you pass every axis for the coordinate space.
+// For example, in 3D, this would require (1, 0, 0), (0, 1, 0), (0, 0, 1).
+func (b *BoundedTree[F, C, T]) AsTree(zero T, axes ...C) *Tree[F, C, T] {
+	if len(axes) == 0 {
+		return b.Tree
+	}
+	return &Tree[F, C, T]{
+		Axis:      axes[0],
+		Threshold: axes[0].Dot(b.Min),
+		LessThan:  &Tree[F, C, T]{Leaf: zero},
+		GreaterEqual: &Tree[F, C, T]{
+			Axis:         axes[0],
+			Threshold:    axes[0].Dot(b.Max),
+			LessThan:     b.AsTree(zero, axes[1:]...),
+			GreaterEqual: &Tree[F, C, T]{Leaf: zero},
+		},
+	}
+}
+
 func TreeSolid(b *BoundedSolidTree) model3d.Solid {
 	return model3d.CheckedFuncSolid(
 		b.Min,
