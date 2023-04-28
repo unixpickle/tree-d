@@ -47,22 +47,27 @@ func (n *normalMapCollider) FirstRayCollision(r *model3d.Ray) (collision model3d
 
 // A Collider implements model3d.Collider for a wrapped boolean tree.
 type Collider struct {
-	tree *BoundedSolidTree
+	min, max model3d.Coord3D
+	tree     *SolidTree
 
 	lock          sync.RWMutex
 	truePolytopes []model3d.Collider
 }
 
 func NewCollider(b *BoundedSolidTree) *Collider {
-	return &Collider{tree: b}
+	return &Collider{
+		min:  b.Min,
+		max:  b.Max,
+		tree: b.AsTree(false, model3d.X(1), model3d.Y(1), model3d.Z(1)),
+	}
 }
 
 func (c *Collider) Min() model3d.Coord3D {
-	return c.tree.Min
+	return c.min
 }
 
 func (c *Collider) Max() model3d.Coord3D {
-	return c.tree.Max
+	return c.max
 }
 
 func (c *Collider) RayCollisions(r *model3d.Ray, f func(model3d.RayCollision)) (count int) {
@@ -80,84 +85,33 @@ func (c *Collider) FirstRayCollision(r *model3d.Ray) (collision model3d.RayColli
 }
 
 func (c *Collider) rayCollisions(r *model3d.Ray, firstOnly bool, f func(model3d.RayCollision)) (count int) {
-	bounds := model3d.BoundsRect(c)
-	var i int
-	var rcs [2]model3d.RayCollision
-	bounds.RayCollisions(r, func(rc model3d.RayCollision) {
-		rcs[i] = rc
-		i++
-	})
-
-	if i == 0 {
-		return 0
-	}
-
-	var entry, exit model3d.RayCollision
-
 	curPoint := r.Origin
 	curT := 0.0
-	if i == 1 {
-		exit = rcs[0]
-	} else {
-		entry, exit = rcs[0], rcs[1]
-		curPoint = r.Origin.Add(r.Direction.Scale(entry.Scale))
-		curT = entry.Scale
-	}
-	prevValue := c.tree.Tree.Predict(curPoint)
+	prevValue := c.tree.Predict(curPoint)
 
-	if i == 2 {
-		if prevValue {
-			count++
-			if f != nil {
-				f(entry)
-			}
-			if firstOnly {
-				return 1
-			}
-		}
-	}
-
-	terminated := false
-	c.tree.Tree.RayChangePoints(curPoint, r.Direction, func(t float64, p, n model3d.Coord3D) bool {
+	c.tree.RayChangePoints(curPoint, r.Direction, func(t float64, p, n model3d.Coord3D) bool {
 		curT += t
-		if curT >= exit.Scale {
-			// Early termination due to exiting the bounds.
-			terminated = true
-			if prevValue {
-				count++
-				if f != nil {
-					f(exit)
-				}
-			}
-			return false
+		newValue := c.tree.Predict(p)
+		if newValue == prevValue {
+			return true
 		}
 
-		newValue := c.tree.Tree.Predict(p)
-		if newValue != prevValue {
-			prevValue = newValue
-			count++
-			if f != nil {
-				if !newValue {
-					n = n.Scale(-1)
-				}
-				f(model3d.RayCollision{
-					Scale:  curT,
-					Normal: n,
-				})
+		prevValue = newValue
+		count++
+		if f != nil {
+			if !newValue {
+				n = n.Scale(-1)
 			}
-			if firstOnly {
-				return false
-			}
+			f(model3d.RayCollision{
+				Scale:  curT,
+				Normal: n,
+			})
+		}
+		if firstOnly {
+			return false
 		}
 		return true
 	})
-
-	if !terminated && prevValue {
-		count++
-		if f != nil {
-			f(exit)
-		}
-	}
 
 	return count
 }
@@ -169,7 +123,7 @@ func (c *Collider) SphereCollision(center model3d.Coord3D, r float64) bool {
 	if polytopes == nil {
 		c.lock.Lock()
 		if c.truePolytopes == nil {
-			polytopes := TreePolytopes(c.tree)
+			polytopes := computePolytopes(c.tree, model3d.ConvexPolytope{})
 			c.truePolytopes = make([]model3d.Collider, len(polytopes))
 			essentials.ConcurrentMap(0, len(polytopes), func(i int) {
 				m := polytopes[i].Mesh()
