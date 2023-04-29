@@ -17,11 +17,66 @@ import (
 //
 // This may have an infinite runtime if the space is empty, since rays will
 // never find points on the surface.
-// To avoid this issue, specify maxTries to limit the number of ray queries.
+// To avoid this issue, specify maxQueries to limit the number of ray queries.
 func SampleDecisionBoundaryCast(
 	b *BoundedSolidTree,
 	numPoints int,
 	maxQueries int,
+) []model3d.Coord3D {
+	return sampleWithRays(
+		b,
+		numPoints,
+		maxQueries,
+		func(collider *Collider, ray *model3d.Ray, cb func(model3d.Coord3D)) {
+			collider.RayCollisions(ray, func(rc model3d.RayCollision) {
+				point := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+				cb(point)
+			})
+		},
+	)
+}
+
+// SampleBranchChanges casts rays into the object and records points within
+// each leaf polytope that is intersected by the rays.
+//
+// This may have an infinite runtime if the space is empty, since rays will
+// never find points on the surface.
+// To avoid this issue, specify maxQueries to limit the number of ray queries.
+func SampleBranchChanges(
+	b *BoundedSolidTree,
+	numPoints int,
+	maxQueries int,
+) []model3d.Coord3D {
+	return sampleWithRays(
+		b,
+		numPoints,
+		maxQueries,
+		func(collider *Collider, ray *model3d.Ray, cb func(model3d.Coord3D)) {
+			var lastPoint model3d.Coord3D
+			var hasLast bool
+			collider.tree.RayChangePoints(
+				ray.Origin,
+				ray.Direction,
+				func(_ float64, c, _ model3d.Coord3D) bool {
+					cb(c)
+					if hasLast {
+						// Get a point more definitely within the polytope
+						cb(c.Add(lastPoint).Scale(0.5))
+					}
+					hasLast = true
+					lastPoint = c
+					return true
+				},
+			)
+		},
+	)
+}
+
+func sampleWithRays(
+	b *BoundedSolidTree,
+	numPoints int,
+	maxQueries int,
+	f func(*Collider, *model3d.Ray, func(model3d.Coord3D)),
 ) []model3d.Coord3D {
 	remainingQueries := int64(maxQueries)
 
@@ -54,10 +109,9 @@ func SampleDecisionBoundaryCast(
 						gen.NormFloat64(),
 					).Normalize(),
 				}
-				collider.RayCollisions(ray, func(rc model3d.RayCollision) {
-					point := ray.Origin.Add(ray.Direction.Scale(rc.Scale))
+				f(collider, ray, func(c model3d.Coord3D) {
 					select {
-					case resChan <- point:
+					case resChan <- c:
 					default:
 						done = true
 					}

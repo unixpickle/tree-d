@@ -21,11 +21,14 @@ func main() {
 	var normalsPath string
 	var outputPath string
 	var numSamples int
+	var numBranchChangeSamples int
 	flag.StringVar(&meshPath, "mesh", "", "path to input mesh")
 	flag.StringVar(&modelPath, "model", "", "path to input model")
 	flag.StringVar(&normalsPath, "normals", "", "path to normal map")
 	flag.StringVar(&outputPath, "output", "", "path to output directory")
 	flag.IntVar(&numSamples, "num-samples", 2000000, "number of samples for simplification")
+	flag.IntVar(&numBranchChangeSamples, "num-branch-change-samples", 1000000,
+		"number of samples for extra branch change data")
 	flag.Parse()
 	if modelPath == "" || normalsPath == "" || outputPath == "" {
 		essentials.Die("Missing required -mesh, -model, -normals, or -output flags. See -help.")
@@ -47,17 +50,26 @@ func main() {
 
 	log.Println("Sampling points...")
 	points := make([]model3d.Coord3D, numSamples)
-	values := make([]bool, numSamples)
 	essentials.StatefulConcurrentMap(0, numSamples, func() func(i int) {
 		gen := rand.New(rand.NewSource(rand.Int63()))
 		min := model.Min
 		max := model.Max
 		size := max.Sub(min)
 		return func(i int) {
-			point := model3d.XYZ(gen.Float64(), gen.Float64(), gen.Float64()).Mul(size).Add(min)
-			points[i] = point
-			values[i] = meshSolid.Contains(point)
+			points[i] = model3d.XYZ(gen.Float64(), gen.Float64(), gen.Float64()).Mul(size).Add(min)
 		}
+	})
+
+	extraPoints := treed.SampleBranchChanges(
+		model,
+		numBranchChangeSamples,
+		numBranchChangeSamples*50,
+	)
+	points = append(points, extraPoints...)
+
+	values := make([]bool, len(points))
+	essentials.ConcurrentMap(0, len(points), func(i int) {
+		values[i] = meshSolid.Contains(points[i])
 	})
 
 	log.Println("Writing outputs...")
