@@ -2,9 +2,9 @@ const Vector = self.treed['Vector'];
 
 (function () {
 
-    const AMBIENT = 0.4;
+    const AMBIENT = 0.3;
     const DIFFUSE = 0.5;
-    const SPECULAR = 0.1;
+    const SPECULAR = 0.2;
 
     function renderTree(canvas, camera, tree, normalMap) {
         const ctx = canvas.getContext('2d');
