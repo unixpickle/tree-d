@@ -71,7 +71,7 @@ func main() {
 	coords, labels := Dataset(inputMesh, solid, datasetSize, surfaceSamples, surfaceEpsilon)
 
 	log.Println("Building initial tree...")
-	axes := model3d.NewMeshIcosphere(model3d.Origin, 1.0, axisResolution).VertexSlice()
+	axes := treed.NewConstantAxisScheduleIcosphere(axisResolution).Init()
 	greedyLoss := treed.EntropySplitLoss[float64]{MinCount: minLeafSize}
 	tree := treed.GreedyTree[float64, model3d.Coord3D, bool](
 		axes,
