@@ -33,7 +33,7 @@ func main() {
 	flag.Float64Var(&momentum, "momentum", 0.9, "Nesterov momentum for SVM training")
 	flag.IntVar(&iters, "iters", 1000, "iterations for SVM training")
 	flag.IntVar(&taoIters, "tao-iters", 50, "maximum iterations of TAO")
-	flag.IntVar(&depth, "depth", 20, "maximum tree depth")
+	flag.IntVar(&depth, "depth", 18, "maximum tree depth")
 	flag.IntVar(&minLeafSize, "min-leaf-size", 5, "minimum samples per leaf when splitting")
 	flag.IntVar(&initDatasetSize, "init-dataset-size", 50000,
 		"number of points to sample for dataset")
