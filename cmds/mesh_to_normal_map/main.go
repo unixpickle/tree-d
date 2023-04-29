@@ -26,8 +26,8 @@ func main() {
 	var verbose bool
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "dataset size for surface")
 	flag.Float64Var(&datasetEpsilon, "dataset-epsilon", 1e-4, "noise to add to input points")
-	flag.IntVar(&numTrees, "num-trees", 3, "number of trees in ensemble")
-	flag.IntVar(&depth, "max-depth", 8, "maximum tree depth")
+	flag.IntVar(&numTrees, "num-trees", 1, "number of trees in ensemble")
+	flag.IntVar(&depth, "max-depth", 16, "maximum tree depth")
 	flag.IntVar(&taoIters, "tao-iters", 5, "maximum number of TAO iterations")
 	flag.Float64Var(&lr, "lr", 0.1, "learning rate for SVM training")
 	flag.Float64Var(&weightDecay, "weight-decay", 1e-4, "weight decay for SVM training")
