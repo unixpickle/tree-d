@@ -18,13 +18,16 @@ func main() {
 	var datasetEpsilon float64
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "dataset size for surface")
 	flag.Float64Var(&datasetEpsilon, "dataset-epsilon", 1e-4, "noise to add to input points")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: mesh_to_normal_map [flags] <tree.bin> <mesh.stl> <map.bin>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: mesh_to_normal_map [flags] <tree.bin> <mesh.stl> <map.bin>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 

@@ -45,13 +45,16 @@ func main() {
 	flag.IntVar(&hitAndRunIterations, "hit-and-run-iterations", 20,
 		"minimum dataset size at leaves")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: mesh_to_tree_v2 [flags] <input.stl> <output.json>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: mesh_to_tree [flags] <input.stl> <output.json>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 	inputPath, outputPath := args[0], args[1]

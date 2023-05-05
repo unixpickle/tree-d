@@ -17,13 +17,16 @@ func main() {
 	var numSamples int
 	flag.IntVar(&maxLeaves, "max-leaves", 512, "maximum number of leaves")
 	flag.IntVar(&numSamples, "num-samples", 2000000, "number of point samples to use")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: simplify_tree [flags] <input.stl> <input.bin> <output.bin>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: simplify_tree [flags] <input.stl> <input.bin> <output.bin>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 	meshPath, inputPath, outputPath := args[0], args[1], args[2]

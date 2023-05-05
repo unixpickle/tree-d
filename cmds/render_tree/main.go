@@ -25,13 +25,16 @@ func main() {
 	flag.Float64Var(&fps, "fps", 10.0, "FPS for GIF outputs")
 	flag.IntVar(&frames, "frames", 20, "total number of frames for GIF outputs")
 	flag.StringVar(&normalMapPath, "normal-map", "", "path to optional normal map tree")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: render_tree [flags] <input.bin> <output.png>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: render_tree [flags] <input.bin> <output.png>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 	inputPath, outputPath := args[0], args[1]
@@ -44,9 +47,10 @@ func main() {
 	var collider model3d.Collider = treed.NewCollider(tree)
 	if normalMapPath != "" {
 		log.Println(" - Loading normal map...")
-		normalMapTree, err := treed.Load(normalMapPath, treed.ReadCoordTree)
+		normalMapTrees, err := treed.LoadMultiple(normalMapPath, treed.ReadCoordTree)
 		essentials.Must(err)
-		collider = treed.MapNormals(collider, normalMapTree)
+		normalMap := treed.VecSumNormEnsemble[float64, model3d.Coord3D, model3d.Coord3D](normalMapTrees)
+		collider = treed.MapNormals(collider, normalMap)
 	}
 	object := render3d.Objectify(collider, nil)
 

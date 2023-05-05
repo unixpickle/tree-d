@@ -37,13 +37,16 @@ func main() {
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.BoolVar(&verbose, "verbose", false, "print out extra optimization information")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: mesh_to_normal_map [flags] <tree.bin> <mesh.stl> <output.bin>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: mesh_to_normal_map [flags] <tree.bin> <mesh.stl> <output.bin>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 

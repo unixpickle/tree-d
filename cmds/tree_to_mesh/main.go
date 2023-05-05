@@ -14,13 +14,16 @@ import (
 func main() {
 	var gridSize int
 	flag.IntVar(&gridSize, "grid-size", 64, "marching cubes grid size")
+	flag.Usage = func() {
+		fmt.Fprintln(os.Stderr, "Usage: tree_to_mesh [flags] <input.bin> <output.stl>")
+		fmt.Fprintln(os.Stderr)
+		flag.PrintDefaults()
+	}
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) != 2 {
-		fmt.Fprintln(os.Stderr, "Usage: tree_to_mesh [flags] <input.bin> <output.stl>")
-		fmt.Fprintln(os.Stderr)
-		flag.PrintDefaults()
+		flag.Usage()
 		os.Exit(1)
 	}
 	inputPath, outputPath := args[0], args[1]
