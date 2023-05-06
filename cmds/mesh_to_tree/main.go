@@ -1,3 +1,5 @@
+// Command mesh_to_tree builds a tree by sampling random points in space
+// followed by active learning steps based on ray casting.
 package main
 
 import (

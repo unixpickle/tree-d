@@ -1,3 +1,6 @@
+// Command mesh_to_tree_v2 builds a tree using adaptive dataset sampling to
+// create more data points in polytopes that don't contain enough
+// representative data.
 package main
 
 import (
