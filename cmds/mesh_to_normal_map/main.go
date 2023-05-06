@@ -13,6 +13,7 @@ import (
 
 func main() {
 	var datasetSize int
+	var meshDatasetFrac float64
 	var datasetEpsilon float64
 	var numTrees int
 	var depth int
@@ -25,6 +26,8 @@ func main() {
 	var axisResolution int
 	var verbose bool
 	flag.IntVar(&datasetSize, "dataset-size", 1000000, "dataset size for surface")
+	flag.Float64Var(&meshDatasetFrac, "mesh-dasate-frac", 0.5,
+		"fraction of dataset to sample from mesh surface")
 	flag.Float64Var(&datasetEpsilon, "dataset-epsilon", 1e-4, "noise to add to input points")
 	flag.IntVar(&numTrees, "num-trees", 1, "number of trees in ensemble")
 	flag.IntVar(&depth, "max-depth", 16, "maximum tree depth")
@@ -76,7 +79,13 @@ func main() {
 	sampleDataset := func() (inputs, targets []model3d.Coord3D) {
 		meshScale := meshField.Min().Dist(meshField.Max())
 		noiseScale := meshScale * datasetEpsilon
-		inputs = treed.SampleDecisionBoundaryCast(solidTree, datasetSize, 0)
+		meshCount := int(meshDatasetFrac * float64(datasetSize))
+		nonMeshCount := datasetSize - meshCount
+		inputs = treed.SampleDecisionBoundaryCast(solidTree, nonMeshCount, 0)
+		meshSampler := treed.MeshPointSampler(inputMesh)
+		for i := 0; i < nonMeshCount; i++ {
+			inputs = append(inputs, meshSampler())
+		}
 		targets = make([]model3d.Coord3D, len(inputs))
 		essentials.ConcurrentMap(0, len(inputs), func(i int) {
 			inputs[i] = inputs[i].Add(model3d.NewCoord3DRandNorm().Scale(noiseScale))
