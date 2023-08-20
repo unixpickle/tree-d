@@ -2,6 +2,24 @@ package treed
 
 import "github.com/unixpickle/model3d/model3d"
 
+// SplitMesh splits a mesh across a plane, potentially dividing up triangles in
+// the process to produce a perfect cut.
+func SplitMesh(m *model3d.Mesh, axis model3d.Coord3D, threshold float64) (lessThan,
+	greaterEqual *model3d.Mesh) {
+	lessThan = model3d.NewMesh()
+	greaterEqual = model3d.NewMesh()
+	m.Iterate(func(t *model3d.Triangle) {
+		lt, ge := splitTriangle(t, axis, threshold)
+		for _, t := range lt {
+			lessThan.Add(t)
+		}
+		for _, t := range ge {
+			greaterEqual.Add(t)
+		}
+	})
+	return
+}
+
 func splitTriangle(t *model3d.Triangle, axis model3d.Coord3D, threshold float64) (lessThan,
 	greaterEqual []*model3d.Triangle) {
 	var signs [3]bool
