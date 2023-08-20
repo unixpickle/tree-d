@@ -26,6 +26,7 @@ func main() {
 	var minLeafSize int
 	var initDatasetSize int
 	var minDatasetSize int
+	var surfaceSplitCount int
 	var axisResolution int
 	var mutationCount int
 	var mutationStddev flagFloats = []float64{0.025}
@@ -41,6 +42,7 @@ func main() {
 	flag.IntVar(&initDatasetSize, "init-dataset-size", 50000,
 		"number of points to sample for dataset")
 	flag.IntVar(&minDatasetSize, "min-dataset-size", 1000, "minimum dataset size at leaves")
+	flag.IntVar(&surfaceSplitCount, "surface-split-count", 0, "use a surface dataset")
 	flag.IntVar(&axisResolution, "axis-resolution", 2,
 		"number of icosphere subdivisions to do when creating split axes")
 	flag.IntVar(&mutationCount, "mutation-count", 30, "number of mutation directions")
@@ -85,18 +87,35 @@ func main() {
 		Iterations: hitAndRunIterations,
 	}
 	bounds := treed.NewPolytopeBounds(solid.Min(), solid.Max())
-	tree := treed.AdaptiveGreedyTree[float64, model3d.Coord3D, bool](
-		axisSchedule,
-		bounds,
-		coords,
-		labels,
-		solid.Contains,
-		greedyLoss,
-		sampler,
-		minDatasetSize,
-		0,
-		depth,
-	)
+	var tree *treed.Tree[float64, model3d.Coord3D, bool]
+	if surfaceSplitCount != 0 {
+		tree = treed.MeshSurfaceTree[bool](
+			inputMesh,
+			bounds,
+			coords,
+			labels,
+			solid.Contains,
+			greedyLoss,
+			sampler,
+			minDatasetSize,
+			0,
+			depth,
+			surfaceSplitCount,
+		)
+	} else {
+		tree = treed.AdaptiveGreedyTree[float64, model3d.Coord3D, bool](
+			axisSchedule,
+			bounds,
+			coords,
+			labels,
+			solid.Contains,
+			greedyLoss,
+			sampler,
+			minDatasetSize,
+			0,
+			depth,
+		)
+	}
 
 	testCoords, testLabels := SolidDataset(solid, initDatasetSize)
 

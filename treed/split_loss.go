@@ -24,6 +24,9 @@ type SplitLoss[F comparable, T any] interface {
 	// Predict returns the value to minimize the loss of a leaf.
 	Predict(List[T]) T
 
+	// SplitLoss computes the loss for a given, existing split.
+	SplitLoss(part1, part2 List[T]) float64
+
 	// Get the best split of the data according to the loss function.
 	//
 	// The first argument must be a sorted list of labels, according to the
@@ -46,6 +49,22 @@ type EntropySplitLoss[F comparable] struct {
 
 func (e EntropySplitLoss[F]) Predict(items List[bool]) bool {
 	return countTrue(items)*2 > items.Len
+}
+
+func (e EntropySplitLoss[F]) SplitLoss(part1, part2 List[bool]) float64 {
+	leftSum := 0
+	rightSum := 0
+	for i := 0; i < part1.Len; i++ {
+		if part1.Get(i) {
+			leftSum++
+		}
+	}
+	for i := 0; i < part2.Len; i++ {
+		if part2.Get(i) {
+			rightSum++
+		}
+	}
+	return entropy(part1.Len, leftSum) + entropy(part2.Len, rightSum)
 }
 
 func (e EntropySplitLoss[F]) MinimumSplit(sorted List[bool], thresholds List[F]) SplitInfo {
@@ -125,6 +144,13 @@ func (v VarianceSplitLoss[F, C]) Predict(items List[C]) C {
 		sum = sum.Add(items.Get(i))
 	}
 	return sum.Scale(1.0 / F(items.Len))
+}
+
+func (v VarianceSplitLoss[F, C]) SplitLoss(part1, part2 List[C]) float64 {
+	var var1, var2 rollingVariance[F, C]
+	var1.AddAll(part1)
+	var2.AddAll(part2)
+	return float64(var1.TotalVariance()) + float64(var2.TotalVariance())
 }
 
 func (v VarianceSplitLoss[F, C]) MinimumSplit(sorted List[C], thresholds List[F]) SplitInfo {
