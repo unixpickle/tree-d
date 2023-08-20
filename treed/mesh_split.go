@@ -4,7 +4,7 @@ import "github.com/unixpickle/model3d/model3d"
 
 func splitTriangle(t *model3d.Triangle, axis model3d.Coord3D, threshold float64) (lessThan,
 	greaterEqual []*model3d.Triangle) {
-	var signs []bool
+	var signs [3]bool
 	for i, c := range t {
 		if axis.Dot(c) >= threshold {
 			signs[i] = true
@@ -68,14 +68,15 @@ func splitTriangle(t *model3d.Triangle, axis model3d.Coord3D, threshold float64)
 		}
 
 		midPoint := o.Add(r.Scale(alpha))
-		majLoop = append(majLoop, midPoint)
-		minLoop = append(minLoop, midPoint)
 
 		if signs[i] == majority {
-			minLoop = append(minLoop, p2)
+			majLoop = append(majLoop, p1)
 		} else {
-			majLoop = append(majLoop, p2)
+			minLoop = append(minLoop, p1)
 		}
+
+		majLoop = append(majLoop, midPoint)
+		minLoop = append(minLoop, midPoint)
 	}
 
 	majTris := []*model3d.Triangle{
